@@ -1,0 +1,148 @@
+---
+title: "Untitled"
+output: pdf_document
+date: "`r Sys.Date()`"
+---
+
+```{r warning=FALSE}
+library(readr)
+library(dplyr)
+library(ggplot2)
+```
+
+
+```{r}
+adult <- read_csv("./data/adult.data", col_names = FALSE)
+colnames(adult) <- c("age", "workclass", "fnlwgt", "education", "education_num",
+                     "marital_status", "occupation", "relationship", "race",
+                     "sex", "capital_gain", "capital_loss", "hours_per_week",
+                     "native_country", "income")
+
+adult$occupation <- ifelse(adult$occupation == "?", "Unknown", adult$occupation)
+adult$workclass <- ifelse(adult$workclass == "?", "Unknown", adult$workclass)
+adult$native_country <- ifelse(adult$native_country == "?", "Unknown", adult$native_country)
+adult$income <- ifelse(adult$income == "<=50K", 0, 1)
+
+adult$workclass <- as.factor(adult$workclass)
+adult$education <- as.factor(adult$education)
+adult$marital_status <- as.factor(adult$marital_status)
+adult$occupation <- as.factor(adult$occupation)
+adult$relationship <- as.factor(adult$relationship)
+adult$race <- as.factor(adult$race)
+adult$sex <- as.factor(adult$sex)
+adult$native_country <- as.factor(adult$native_country)
+adult$income <- as.factor(adult$income)
+
+adult <- adult %>%
+  select(-fnlwgt)
+```
+
+
+```{r}
+create_plot <- function(data, var_name, type = "prop") {
+  if (type == "count") {
+    position <- "stack"
+    colors <- c("1" = "#4CAF50", "0" = "#E4381B")
+  } else {
+    position <- "fill"
+    colors <- c("1" = "#4CAF50", "0" = "#F44336")
+  }
+
+  ggplot(data, aes(x = .data[[var_name]], fill = income)) +
+    geom_bar(position = position) +
+    scale_fill_manual(values = colors) +
+    labs(x = var_name, y = "", fill = "income") +
+    theme_minimal() +
+    theme(
+      axis.text.x = element_text(angle = 45, hjust = 1),
+      legend.position = "none"
+    )
+}
+```
+
+
+
+```{r}
+summary(adult)
+```
+
+```{r}
+table(adult$workclass)
+```
+
+```{r}
+table(adult$education)
+```
+
+```{r}
+table(adult$marital_status)
+```
+
+```{r}
+table(adult$occupation)
+```
+```{r}
+table(adult$relationship)
+```
+
+```{r}
+table(adult$race)
+```
+
+```{r}
+table(adult$sex)
+```
+
+```{r}
+adult %>%
+  filter(native_country == "South") %>%
+  ggplot(aes(x = race, fill = race)) +
+  geom_bar() +
+  theme_minimal()
+```
+
+
+```{r}
+table(adult$native_country)
+```
+
+```{r}
+adult <- adult %>%
+  mutate(region = case_when(
+    native_country %in% c("Canada", "United-States", "Mexico", "Cuba", 
+                          "Dominican-Republic", "Jamaica", "Puerto-Rico", 
+                          "Haiti", "Guatemala", "Honduras", "Nicaragua", 
+                          "El-Salvador", "Trinadad&Tobago", 
+                          "Outlying-US(Guam-USVI-etc)") ~ "North America",
+    
+    native_country %in% c("Columbia", "Ecuador", "Peru") ~ "South America",
+    
+    native_country %in% c("England", "France", "Germany", "Greece", 
+                          "Holand-Netherlands", "Hungary", "Ireland", 
+                          "Italy", "Poland", "Portugal", "Scotland", 
+                          "Yugoslavia") ~ "Europe",
+    
+    native_country %in% c("Cambodia", "China", "Hong", "India", "Iran", 
+                          "Japan", "Laos", "Philippines", "Taiwan", 
+                          "Thailand", "Vietnam") ~ "Asia",
+    
+    native_country == "South" ~ "Other/Unknown",
+    
+    TRUE ~ "Other/Unknown"
+  ))
+```
+
+
+
+```{r}
+table(adult$income)
+```
+
+```{r}
+create_plot(adult, "workclass", type = "count")
+```
+
+```{r}
+create_plot(adult, "workclass", type = "prop")
+```
+
