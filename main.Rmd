@@ -174,13 +174,23 @@ adult <- adult %>%
     
     TRUE ~ "Other"
   ))
+
+
 ```
 
-
+```{r}
+adult %>%
+  group_by(education_category, marital_category, sex, occupation_group) %>%
+  summarise(n = n()) %>%
+  arrange(n)
+```
+Idomus yra tas kuris profesonalas su pradiniu issilavinimu :D, siulau 'other' ir 'unknow' isvis mest lauk, ju mazai ir nieko gero is ju
 
 ```{r}
 table(adult$income)
 ```
+"0" apie 3 kartus daugiau  nei "1". Šitą problemą spręsti reiks arba slenkstį koreguojant, 
+arba generuojant papildomai duomenų mokymo aibei.
 
 ```{r}
 create_plot(adult, "workclass", type = "count")
@@ -201,6 +211,7 @@ ggplot(adult, aes(x = income, y = capital_gain, fill = income)) +
     geom_boxplot() +
     theme_minimal()
 ```
+Žiauru. Taip atrodo ištrinus:
 ```{r}
 ggplot(adult, aes(x = income, y = capital_loss, fill = income)) +
     geom_boxplot() +
@@ -243,5 +254,12 @@ ggplot(adult, aes(x = hours_per_week, y = income, fill = income)) +
   geom_density_ridges(alpha = 0.7)
   theme_ridges() + 
   theme(legend.position = "none")
+```
+
+```{r}
+adult %>%
+  group_by(workclass, education, marital_status,occupation,relationship,race,sex) %>%
+  summarise(n = n()) %>%
+  arrange(n)
 ```
 
