@@ -178,13 +178,19 @@ adult <- adult %>%
 
 ```
 
-```{r}
-adult %>%
-  group_by(education_category, marital_category, sex, occupation_group) %>%
-  summarise(n = n()) %>%
-  arrange(n)
+```{r, nauju kategoriniu  dazniai}
+print("region:")
+table(adult$region)
+print("age_category:")
+table(adult$age_category)
+print("education_category:")
+table(adult$education_category)
+print("marital_category:")
+table(adult$marital_category)
+print("occupation_group:")
+table(adult$occupation_group)
 ```
-Idomus yra tas kuris profesonalas su pradiniu issilavinimu :D, siulau 'other' ir 'unknow' isvis mest lauk, ju mazai ir nieko gero is ju
+
 
 ```{r}
 table(adult$income)
@@ -256,10 +262,22 @@ ggplot(adult, aes(x = hours_per_week, y = income, fill = income)) +
   theme(legend.position = "none")
 ```
 
+
 ```{r}
 adult %>%
-  group_by(workclass, education, marital_status,occupation,relationship,race,sex) %>%
+  group_by(education_category, age_category, region,sex) %>%
   summarise(n = n()) %>%
   arrange(n)
 ```
+Cia tik pavyzdys bet mazdaug galite isivaizduot kas darysis jei visus kategorinius cia sudesiu. Neturime pakankamai stebėjimų visose kategorijose. Reik paklausti destytojas bet man atrodo gera ideja sudarinėti kryžmines lenteles ir žiūreti, kurių kategorijų skaičiai labiausiai nesutampa pagal kažkokią kategoriją, pvz.
+```{r}
+#ratio table
+prop.table(table(adult$sex, adult$income), margin = 1)
+```
+Yra daugiau maziau nei 50k uzdirbanciu moteru nei vyru, tad sitas kintamasis galetu buti visai gal ir nieko; Zinoma kintamuosius atsirinkinesime ir sudare modeli  ir ziurint i p reiksme;
+
+ARBA 
+
+paziuret kuris kazkurio kategorinio lygmuo labiausiai trukdo pvz gal susiaurine modeli tik iki tam tikro amziaus, arba tik iki tam tikros regiono, arba tik iki tam tikros issilavinimo kategorijos ir ziuret ar uztektinai stebejimu yra;
+
 
