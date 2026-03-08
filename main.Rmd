@@ -8,6 +8,7 @@ date: "`r Sys.Date()`"
 library(readr)
 library(dplyr)
 library(ggplot2)
+library(ggridges)
 ```
 
 
@@ -34,7 +35,7 @@ adult$native_country <- as.factor(adult$native_country)
 adult$income <- as.factor(adult$income)
 
 adult <- adult %>%
-  select(-fnlwgt)
+  select(-fnlwgt, -education_num)
 ```
 
 
@@ -145,6 +146,34 @@ adult <- adult %>%
     education %in% c('Masters', 'Doctorate', 'Prof-school') ~ 'Advanced',
     TRUE ~ 'Other'
   ))
+
+adult$education_category <- factor(adult$education_category, 
+                                   levels = c("Primary", "Secondary", "Tertiary", "Advanced", "Other"))
+
+adult <- adult %>%
+  mutate(marital_category = case_when(
+    marital_status %in% c("Married-civ-spouse", "Married-AF-spouse", "Married-spouse-absent") ~ "Married",
+    marital_status %in% c("Divorced", "Separated", "Widowed") ~ "Not Married",
+    marital_status == "Never-married" ~ "Never Married",
+    TRUE ~ "Other"
+  ))
+
+adult <- adult %>%
+  mutate(occupation_group = case_when(
+    occupation %in% c("Tech-support", "Craft-repair", "Other-service", 
+                      "Sales", "Exec-managerial", "Protective-serv", 
+                      "Priv-house-serv") ~ "Service/Tech",
+    
+    occupation %in% c("Prof-specialty", "Adm-clerical", 
+                      "Armed-Forces") ~ "Professional/Admin",
+    
+    occupation %in% c("Machine-op-inspct", "Transport-moving", 
+                      "Farming-fishing", "Handlers-cleaners") ~ "Manual Labor",
+    
+    occupation %in% c("Unknown") ~ "Unknown",
+    
+    TRUE ~ "Other"
+  ))
 ```
 
 
@@ -159,5 +188,60 @@ create_plot(adult, "workclass", type = "count")
 
 ```{r}
 create_plot(adult, "workclass", type = "prop")
+```
+
+```{r}
+ggplot(adult, aes(x = income, y = age, fill = income)) +
+    geom_boxplot() +
+    theme_minimal()
+```
+
+```{r}
+ggplot(adult, aes(x = income, y = capital_gain, fill = income)) +
+    geom_boxplot() +
+    theme_minimal()
+```
+```{r}
+ggplot(adult, aes(x = income, y = capital_loss, fill = income)) +
+    geom_boxplot() +
+    theme_minimal()
+```
+
+```{r}
+ggplot(adult, aes(x = income, y = hours_per_week, fill = income)) +
+    geom_boxplot() +
+    theme_minimal()
+```
+
+
+
+
+```{r}
+ggplot(adult, aes(x = capital_gain, y = income, fill = income)) +
+  geom_density_ridges(alpha = 0.7)
+  theme_ridges() + 
+  theme(legend.position = "none")
+```
+
+```{r}
+ggplot(adult, aes(x = capital_loss, y = income, fill = income)) +
+  geom_density_ridges(alpha = 0.7)
+  theme_ridges() + 
+  theme(legend.position = "none")
+```
+
+```{r}
+ggplot(adult, aes(x = age, y = income, fill = income)) +
+  geom_density_ridges(alpha = 0.7)
+  theme_ridges() + 
+  theme(legend.position = "none")
+```
+
+
+```{r}
+ggplot(adult, aes(x = hours_per_week, y = income, fill = income)) +
+  geom_density_ridges(alpha = 0.7)
+  theme_ridges() + 
+  theme(legend.position = "none")
 ```
 
