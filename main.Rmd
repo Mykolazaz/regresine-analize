@@ -130,6 +130,21 @@ adult <- adult %>%
     
     TRUE ~ "Other/Unknown"
   ))
+
+
+adult$age_category <- cut(adult$age, 
+                         breaks = c(0, 25, 35, 45, 55, 65, Inf),
+                         labels = c("0-24", "25-34", "35-44", "45-54", "55-64", "65+"),
+                         right = FALSE)
+
+adult <- adult %>%
+  mutate(education_category = case_when(
+    education %in% c('1st-4th', '5th-6th') ~ 'Primary',
+    education %in% c('7th-8th', 'HS-grad', '10th', '11th', '12th', '9th') ~ 'Secondary',
+    education %in% c('Some-college', 'Bachelors', 'Assoc-voc', 'Assoc-acdm') ~ 'Tertiary',
+    education %in% c('Masters', 'Doctorate', 'Prof-school') ~ 'Advanced',
+    TRUE ~ 'Other'
+  ))
 ```
 
 
