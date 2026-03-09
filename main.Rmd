@@ -11,6 +11,14 @@ library(ggplot2)
 library(ggridges)
 ```
 
+# Tikslas:
+
+Ištirti veiksnius turinčius įtakos žmogaus uždarbiui
+
+# Uždaviniai:
+
+-   Nustatyti, kurie veiksniai turi įtakos žmogaus uždarbiui
+-   Prognozuoti, ar žmogus uždirba daugiau nei 50K per metus.
 
 ```{r}
 adult <- read_csv("./data/adult.data", col_names = FALSE)
@@ -38,7 +46,6 @@ adult <- adult %>%
   select(-fnlwgt, -education_num)
 ```
 
-
 ```{r}
 create_plot <- function(data, var_name, type = "prop") {
   if (type == "count") {
@@ -61,8 +68,6 @@ create_plot <- function(data, var_name, type = "prop") {
 }
 ```
 
-
-
 ```{r}
 summary(adult)
 ```
@@ -82,6 +87,7 @@ table(adult$marital_status)
 ```{r}
 table(adult$occupation)
 ```
+
 ```{r}
 table(adult$relationship)
 ```
@@ -101,7 +107,6 @@ adult %>%
   geom_bar() +
   theme_minimal()
 ```
-
 
 ```{r}
 table(adult$native_country)
@@ -191,44 +196,32 @@ print("occupation_group:")
 table(adult$occupation_group)
 ```
 
-
 ```{r}
 table(adult$income)
 ```
-"0" apie 3 kartus daugiau  nei "1". Šitą problemą spręsti reiks arba slenkstį koreguojant, 
-arba generuojant papildomai duomenų mokymo aibei.
+
+"0" apie 3 kartus daugiau nei "1". Šitą problemą spręsti reiks arba slenkstį koreguojant, arba balansuojant grupes. Sakė galime daryti šių metodų palyginimus.
 
 ```{r}
 create_plot(adult, "workclass", type = "count")
 ```
 
+
 ```{r}
 create_plot(adult, "workclass", type = "prop")
 ```
 
-```{r}
-ggplot(adult, aes(x = income, y = age, fill = income)) +
-    geom_boxplot() +
-    theme_minimal()
+su Never-worked ir without-pay turime atskiriamumo problemą.
+
+```{r, workclass changed}
+create_plot(adult, "occupation_group",type="prop")
+```
+Sujungus duomenis šios problemos nebėra. Tik reiktų paaiškinti, kodėl taip sujungėme. 
+```{r, workclass changed count}
+create_plot(adult, "occupation_group",type="count")
 ```
 
-```{r}
-ggplot(adult, aes(x = income, y = capital_gain, fill = income)) +
-    geom_boxplot() +
-    theme_minimal()
-```
-Žiauru. Taip atrodo ištrinus:
-```{r}
-ggplot(adult, aes(x = income, y = capital_loss, fill = income)) +
-    geom_boxplot() +
-    theme_minimal()
-```
 
-```{r}
-ggplot(adult, aes(x = income, y = hours_per_week, fill = income)) +
-    geom_boxplot() +
-    theme_minimal()
-```
 
 
 
@@ -238,13 +231,29 @@ ggplot(adult, aes(x = capital_gain, y = income, fill = income)) +
   geom_density_ridges(alpha = 0.7)
   theme_ridges() + 
   theme(legend.position = "none")
+
 ```
+
+```{r}
+ggplot(adult, aes(x = income, y = capital_gain, fill = income)) +
+    geom_boxplot(width=0.5) +
+    theme_minimal()
+```
+
+Dauguma gauna nulį pelno, tiek daug uždirbantys, tiek mažai uždirbantys.
+
+
 
 ```{r}
 ggplot(adult, aes(x = capital_loss, y = income, fill = income)) +
   geom_density_ridges(alpha = 0.7)
   theme_ridges() + 
   theme(legend.position = "none")
+```
+```{r}
+ggplot(adult, aes(x = income, y = capital_loss, fill = income)) +
+    geom_boxplot(width=0.5) +
+    theme_minimal()
 ```
 
 ```{r}
@@ -254,6 +263,20 @@ ggplot(adult, aes(x = age, y = income, fill = income)) +
   theme(legend.position = "none")
 ```
 
+```{r}
+ggplot(adult, aes(x = income, y = age, fill = income)) +
+    geom_boxplot(width=0.5) +
+    theme_minimal()
+```
+
+Aukštesnes pajamas gaunančių žmonių amžiaus mediana yra didesnė nei žemesnes pajamas gaunančių. Tarpkvartiliinis plotas taip pat žemesnes pajamas gaunačių didesnis (reiškia daug yra jaunų mažas gaunančių, daug yra senų mažai gaunančių.)
+
+
+```{r}
+ggplot(adult, aes(x = income, y = hours_per_week, fill = income)) +
+    geom_boxplot() +
+    theme_minimal()
+```
 
 ```{r}
 ggplot(adult, aes(x = hours_per_week, y = income, fill = income)) +
@@ -262,22 +285,9 @@ ggplot(adult, aes(x = hours_per_week, y = income, fill = income)) +
   theme(legend.position = "none")
 ```
 
-
 ```{r}
 adult %>%
   group_by(education_category, age_category, region,sex) %>%
   summarise(n = n()) %>%
   arrange(n)
 ```
-Cia tik pavyzdys bet mazdaug galite isivaizduot kas darysis jei visus kategorinius cia sudesiu. Neturime pakankamai stebėjimų visose kategorijose. Reik paklausti destytojas bet man atrodo gera ideja sudarinėti kryžmines lenteles ir žiūreti, kurių kategorijų skaičiai labiausiai nesutampa pagal kažkokią kategoriją, pvz.
-```{r}
-#ratio table
-prop.table(table(adult$sex, adult$income), margin = 1)
-```
-Yra daugiau maziau nei 50k uzdirbanciu moteru nei vyru, tad sitas kintamasis galetu buti visai gal ir nieko; Zinoma kintamuosius atsirinkinesime ir sudare modeli  ir ziurint i p reiksme;
-
-ARBA 
-
-paziuret kuris kazkurio kategorinio lygmuo labiausiai trukdo pvz gal susiaurine modeli tik iki tam tikro amziaus, arba tik iki tam tikros regiono, arba tik iki tam tikros issilavinimo kategorijos ir ziuret ar uztektinai stebejimu yra;
-
-
