@@ -9,6 +9,9 @@ library(readr)
 library(dplyr)
 library(ggplot2)
 library(ggridges)
+library(rsample)
+library(caret)
+library(pROC)
 ```
 
 # Tikslas:
@@ -20,16 +23,17 @@ Ištirti veiksnius turinčius įtakos žmogaus uždarbiui
 -   Nustatyti, kurie veiksniai turi įtakos žmogaus uždarbiui
 -   Prognozuoti, ar žmogus uždirba daugiau nei 50K per metus.
 
-```{r}
+```{r, warning=FALSE}
 adult <- read_csv("./data/adult.data", col_names = FALSE)
 colnames(adult) <- c("age", "workclass", "fnlwgt", "education", "education_num",
                      "marital_status", "occupation", "relationship", "race",
                      "sex", "capital_gain", "capital_loss", "hours_per_week",
                      "native_country", "income")
 
-adult$occupation <- ifelse(adult$occupation == "?", "Unknown", adult$occupation)
-adult$workclass <- ifelse(adult$workclass == "?", "Unknown", adult$workclass)
-adult$native_country <- ifelse(adult$native_country == "?", "Unknown", adult$native_country)
+#? bus laikomi kaip praleisti stebejimai ir bus salinami
+adult$occupation <- ifelse(adult$occupation == "?", NA , adult$occupation) 
+adult$workclass <- ifelse(adult$workclass == "?", NA , adult$workclass)
+adult$native_country <- ifelse(adult$native_country == "?", NA, adult$native_country)
 adult$income <- ifelse(adult$income == "<=50K", 0, 1)
 
 adult$workclass <- as.factor(adult$workclass)
@@ -69,7 +73,7 @@ create_plot <- function(data, var_name, type = "prop") {
 ```
 
 ```{r}
-summary(adult)
+summary(adult$age) 
 ```
 
 ```{r}
@@ -113,6 +117,10 @@ table(adult$native_country)
 ```
 
 ```{r}
+
+
+#https://www.kaggle.com/datasets/uciml/adult-census-income/discussion/25946
+#There are 3 countries I found that have "South": (1) South Africa, (2) South Korea, and (3) South Sudan. #I'm guessing it is highly likely it is South Korea because if you look at the race attribute for all the #"South" you will see 77 out of 80 are "Asian-Pac-Islander"
 adult <- adult %>%
   mutate(region = case_when(
     native_country %in% c("Canada", "United-States", "Mexico", "Cuba", 
@@ -130,11 +138,9 @@ adult <- adult %>%
     
     native_country %in% c("Cambodia", "China", "Hong", "India", "Iran", 
                           "Japan", "Laos", "Philippines", "Taiwan", 
-                          "Thailand", "Vietnam") ~ "Asia",
+                          "Thailand", "Vietnam","South") ~ "Asia",
     
-    native_country == "South" ~ "Other/Unknown",
-    
-    TRUE ~ "Other/Unknown"
+    TRUE ~ NA 
   ))
 
 
@@ -149,16 +155,17 @@ adult <- adult %>%
     education %in% c('7th-8th', 'HS-grad', '10th', '11th', '12th', '9th') ~ 'Secondary',
     education %in% c('Some-college', 'Bachelors', 'Assoc-voc', 'Assoc-acdm') ~ 'Tertiary',
     education %in% c('Masters', 'Doctorate', 'Prof-school') ~ 'Advanced',
-    TRUE ~ 'Other'
+    TRUE ~ 'None' #logiskiau, mano galva, 'preschool' vadinti kaip other praranda siek tiek prasme
   ))
 
+#tada galimas toks rikiavimas
 adult$education_category <- factor(adult$education_category, 
-                                   levels = c("Primary", "Secondary", "Tertiary", "Advanced", "Other"))
+                                   levels = c("None","Primary", "Secondary", "Tertiary", "Advanced"))
 
 adult <- adult %>%
   mutate(marital_category = case_when(
     marital_status %in% c("Married-civ-spouse", "Married-AF-spouse", "Married-spouse-absent") ~ "Married",
-    marital_status %in% c("Divorced", "Separated", "Widowed") ~ "Not Married",
+    marital_status %in% c("Divorced", "Separated", "Widowed") ~ "Ex-Married",
     marital_status == "Never-married" ~ "Never Married",
     TRUE ~ "Other"
   ))
@@ -175,12 +182,17 @@ adult <- adult %>%
     occupation %in% c("Machine-op-inspct", "Transport-moving", 
                       "Farming-fishing", "Handlers-cleaners") ~ "Manual Labor",
     
-    occupation %in% c("Unknown") ~ "Unknown",
-    
-    TRUE ~ "Other"
+    TRUE ~ NA
   ))
 
 
+adult$workclass_grp <- case_when(
+  adult$workclass %in% c("Federal-gov", "Local-gov", "State-gov") ~ "Government",
+  adult$workclass %in% c("Self-emp-inc", "Self-emp-not-inc") ~ "Self-employed",
+  adult$workclass == "Private" ~ "Private",
+  adult$workclass == "Without-pay" ~ "Without-pay",
+  TRUE ~ NA
+)
 ```
 
 ```{r, nauju kategoriniu  dazniai}
@@ -196,6 +208,7 @@ print("occupation_group:")
 table(adult$occupation_group)
 ```
 
+
 ```{r}
 table(adult$income)
 ```
@@ -203,27 +216,56 @@ table(adult$income)
 "0" apie 3 kartus daugiau nei "1". Šitą problemą spręsti reiks arba slenkstį koreguojant, arba balansuojant grupes. Sakė galime daryti šių metodų palyginimus.
 
 ```{r}
-create_plot(adult, "workclass", type = "count")
+create_plot(adult, "region", type = "count")
 ```
+```{r}
+create_plot(adult, "region", type = "prop")
 
+```
+```{r}
+create_plot(adult, "age_category", type = "count")
+```
 
 ```{r}
-create_plot(adult, "workclass", type = "prop")
+create_plot(adult, "age_category", type = "prop")
+```
+Praktiškai visi 0-24 grupėje yra mažas pajamas gaunantys, tačiau tai logiška -- paliekame.
+```{r}
+create_plot(adult, "education_category", type = "count")
+
 ```
 
-su Never-worked ir without-pay turime atskiriamumo problemą.
+```{r}
+create_plot(adult, "education_category", type = "prop")
+```
+Atskiriamumas pagal `None`, taip pat logiškas rezultatas;
 
-```{r, workclass changed}
+```{r}
+create_plot(adult, "marital_category", type = "count")
+```
+```{r}
+create_plot(adult, "marital_category", type = "prop")
+```
+
+su Never-worked ir without-pay turime dalinio atskiriamumo problemą.
+
+```{r, occupation changed}
 create_plot(adult, "occupation_group",type="prop")
 ```
 Sujungus duomenis šios problemos nebėra. Tik reiktų paaiškinti, kodėl taip sujungėme. 
-```{r, workclass changed count}
+```{r, occupation changed count}
 create_plot(adult, "occupation_group",type="count")
 ```
+```{r}
+create_plot(adult, "workclass_grp",type="count")
+```
+```{r}
+table(adult$workclass_grp) #bruh without-pay tiesiog trint lauk
+```
 
-
-
-
+```{r}
+create_plot(adult, "workclass_grp",type="prop")
+```
 
 
 ```{r}
@@ -231,7 +273,6 @@ ggplot(adult, aes(x = capital_gain, y = income, fill = income)) +
   geom_density_ridges(alpha = 0.7)
   theme_ridges() + 
   theme(legend.position = "none")
-
 ```
 
 ```{r}
@@ -286,8 +327,55 @@ ggplot(adult, aes(x = hours_per_week, y = income, fill = income)) +
 ```
 
 ```{r}
-adult %>%
-  group_by(education_category, age_category, region,sex) %>%
-  summarise(n = n()) %>%
-  arrange(n)
+adult_clean <- adult %>%
+  filter(!is.na(occupation_group) & !is.na(region)) %>% select(-age, -education, -marital_status, -native_country, -relationship, -occupation, -workclass)
+```
+
+
+```{r, train/test split}
+set.seed(80085)
+
+split <- initial_split(adult_clean, prop = 0.8, strata = income)
+train <- training(split)
+test  <- testing(split)
+```
+
+```{r}
+table(adult_clean$income)
+```
+```{r, balansavimas}
+#is esmes tai kad turime tiek daug kategoriniu neleidzia taikyti SMOTE,
+#teks apsieiti tik su slenkscio koregavimu
+```
+# logit probit cloglog
+
+```{r}
+adult_logit <- glm(income ~ ., data = train, family = binomial(link = "logit"))
+summary(adult_logit)
+```
+
+```{r}
+pred_prob <- predict(adult_logit, newdata = test, type = "response")
+pred_class <- factor(ifelse(pred_prob > 0.5, "1", "0"), levels = levels(test$income))
+
+confusionMatrix(pred_class, test$income)
+```
+
+```{r}
+
+roc_obj <- roc(response = test$income,
+               predictor = pred_prob,
+               levels = c("0", "1"))
+
+plot(roc_obj, xlim = c(1, 0),
+     ylim = c(0, 1),
+      xaxs = "i",
+     yaxs = "i",)
+abline(a = 0, b = 1, lty = 2, col = "gray")
+```
+TODO: surasti optimalu slenksti
+
+```{r}
+adult_probit <- glm(income ~ ., data = train, family = binomial(link = "probit"))
+summary(adult_probit)
 ```
