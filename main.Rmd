@@ -14,6 +14,7 @@ library(caret)
 library(pROC)
 library(car) # gVIF
 library(boot) # Pirsono liekanos
+library(cutpointr) # Optimalus slekstis
 ```
 
 # Tikslas:
@@ -382,7 +383,7 @@ plot(pearson_residuals, pch="*", cex=2)
 length(pearson_residuals[pearson_residuals < -3 | pearson_residuals > 3])
 ```
 
-Labai daug išskirčių pagal Pirsono liekanas.
+Labai daug išskirčių pagal Pirsono liekanas. Iš indekso matosi, kad po maždaug 18000-ojo indekso turime daug išskirčių: visi asmenų pajamos didesnės nei 50 tūkst. JAV dolerių (`income` = 1).
 
 ```{r}
 cooksd <- cooks.distance(adult_logit_1)
@@ -412,8 +413,6 @@ print(cm)
 ```
 
 ```{r}
-library(cutpointr)
-
 cutpoint <- cutpointr(test, pred_prob, income, method = maximize_metric, metric = youden, na.rm = TRUE)
 ```
 
@@ -426,7 +425,7 @@ print(cm)
 
 
 ```{r}
-roc_obj <- roc(response = test$income,
+roc_obj <- pROC::roc(response = test$income,
                predictor = pred_prob,
                levels = c("0", "1"))
 
@@ -436,6 +435,7 @@ plot(roc_obj, xlim = c(1, 0),
      yaxs = "i",)
 abline(a = 0, b = 1, lty = 2, col = "gray")
 ```
+
 TODO: surasti optimalu slenksti
 
 ```{r}
