@@ -338,9 +338,9 @@ ggplot(adult, aes(x = hours_per_week, y = income, fill = income)) +
   theme(legend.position = "none")
 ```
 
+
 ```{r}
-adult_clean <- adult %>%
-  filter(!is.na(occupation_group) & !is.na(region)) %>% select(-age, -education, -marital_status, -native_country, -relationship, -occupation, -workclass)
+adult_clean <- adult %>% select(-age, -education, -marital_status, -native_country, -relationship, -occupation, -workclass)
 ```
 
 ```{r}
@@ -385,6 +385,20 @@ plot(pearson_residuals, pch="*", cex=2)
 length(pearson_residuals[pearson_residuals < -3 | pearson_residuals > 3])
 ```
 
+```{r}
+pearson_residuals[pearson_residuals > 40]
+```
+
+```{r}
+train[25983, ]
+```
+
+```{r}
+adult[adult$income == 1 & adult$age_category == '0-24' & adult$education_category == 'Primary', ]
+```
+
+Išskirtis 25983 - 22 metų valytojas, uždirbantis daugiau nei 50 tūkst. JAV dolerių. Aiškiai matosi, kad duomenyse yra daug netikslumų, potencialių klaidų, kylančių iš įtartinų pajamų deklaracijų.
+
 Labai daug išskirčių pagal Pirsono liekanas. Iš indekso matosi, kad po maždaug 18000-ojo indekso turime daug išskirčių: visi asmenų pajamos didesnės nei 50 tūkst. JAV dolerių (`income` = 1). Modeliui sudėtinga prognozuoti įvykį. Kadangi logistinė regresija yra nejautri išskirtims, šių stebinių išskirtimis nelaikysime.
 
 ```{r}
@@ -421,7 +435,7 @@ print(cutpoint_logit$optimal_cutpoint)
 ```
 
 ```{r}
-pred_class_2 <- factor(ifelse(pred_prob > 0.209, "1", "0"), levels = levels(test$income))
+pred_class_2 <- factor(ifelse(pred_prob > 0.2094109, "1", "0"), levels = levels(test$income))
 
 cm_2 <- confusionMatrix(pred_class_2, test$income)
 print(cm_2)
