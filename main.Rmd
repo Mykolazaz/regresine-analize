@@ -16,12 +16,13 @@ library(pROC)
 
 # Tikslas:
 
-Ištirti veiksnius turinčius įtakos žmogaus uždarbiui
+Sudaryti binaraus atsako modelį, gebantį prognozuoti, ar žmogus uždirba daugiau nei 50 tūkst. dolerių per metus.
 
 # Uždaviniai:
 
--   Nustatyti, kurie veiksniai turi įtakos žmogaus uždarbiui
--   Prognozuoti, ar žmogus uždirba daugiau nei 50K per metus.
+- Atliekant tiriamąją duomenų analizę atsirinkti bei sukonstruoti uždarbio slenksčio perkopimą prognozuojančius požymius;
+- Nustatyti, kurie veiksniai geriausiai prognozuoja, ar žmogus uždirba daugiau nei 50 tūkst. JAV dolerių per metus;
+- Prognozuoti, ar žmogus uždirba daugiau nei 50 tūkst. JAV dolerių per metus.
 
 ```{r, warning=FALSE}
 adult <- read_csv("./data/adult.data", col_names = FALSE)
