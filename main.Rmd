@@ -1,5 +1,5 @@
 ---
-title: "Untitled"
+title: "1-laboratorinis"
 output: pdf_document
 date: "`r Sys.Date()`"
 ---
@@ -120,10 +120,9 @@ table(adult$native_country)
 ```
 
 ```{r}
-
-
 #https://www.kaggle.com/datasets/uciml/adult-census-income/discussion/25946
 #There are 3 countries I found that have "South": (1) South Africa, (2) South Korea, and (3) South Sudan. #I'm guessing it is highly likely it is South Korea because if you look at the race attribute for all the #"South" you will see 77 out of 80 are "Asian-Pac-Islander"
+
 adult <- adult %>%
   mutate(region = case_when(
     native_country %in% c("Canada", "United-States", "Mexico", "Cuba", 
@@ -259,13 +258,17 @@ su Never-worked ir without-pay turime dalinio atskiriamumo problemą.
 ```{r, occupation changed}
 create_plot(adult, "occupation_group",type="prop")
 ```
+
 Sujungus duomenis šios problemos nebėra. Tik reiktų paaiškinti, kodėl taip sujungėme. 
+
 ```{r, occupation changed count}
 create_plot(adult, "occupation_group",type="count")
 ```
+
 ```{r}
 create_plot(adult, "workclass_grp",type="count")
 ```
+
 ```{r}
 table(adult$workclass_grp) #bruh without-pay tiesiog trint lauk
 ```
@@ -282,15 +285,6 @@ ggplot(adult, aes(x = capital_gain, y = income, fill = income)) +
   theme(legend.position = "none")
 ```
 
-```{r}
-ggplot(adult, aes(x = income, y = capital_gain, fill = income)) +
-    geom_boxplot(width=0.5) +
-    theme_minimal()
-```
-
-Dauguma gauna nulį pelno, tiek daug uždirbantys, tiek mažai uždirbantys.
-
-
 
 ```{r}
 ggplot(adult, aes(x = capital_loss, y = income, fill = income)) +
@@ -298,10 +292,18 @@ ggplot(adult, aes(x = capital_loss, y = income, fill = income)) +
   theme_ridges() + 
   theme(legend.position = "none")
 ```
+
+`capital_gain` ir `capital_loss` kintamieji labai įtartini, kadangi kintamojo `capital_gain` daug reikšmių kartojasi keletai asmenų. Šį kintamąjį laikysime nepatikimu ir sukursime naują kintamąjį, kuris rodys, ar asmuo yra pardavęs akcijų (apytikslis atitikmuo kintamąjam, ar žmogus turi akcijų).
+
 ```{r}
-ggplot(adult, aes(x = income, y = capital_loss, fill = income)) +
-    geom_boxplot(width=0.5) +
-    theme_minimal()
+adult <- adult %>%
+  mutate(has_sold_stocks = ifelse(capital_gain > 0 | capital_loss > 0, 1, 0))
+
+adult <- subset(adult, select = -c(capital_gain, capital_loss))
+```
+
+```{r}
+table(adult$has_sold_stocks, adult$income)
 ```
 
 ```{r}
@@ -317,7 +319,7 @@ ggplot(adult, aes(x = income, y = age, fill = income)) +
     theme_minimal()
 ```
 
-Aukštesnes pajamas gaunančių žmonių amžiaus mediana yra didesnė nei žemesnes pajamas gaunančių. Tarpkvartiliinis plotas taip pat žemesnes pajamas gaunačių didesnis (reiškia daug yra jaunų mažas gaunančių, daug yra senų mažai gaunančių.)
+Aukštesnes pajamas gaunančių žmonių amžiaus mediana yra didesnė nei žemesnes pajamas gaunančių. Tarpkvartiliinis plotis taip pat žemesnes pajamas gaunačių didesnis (reiškia daug yra jaunų mažas gaunančių, daug yra senų mažai gaunančių.)
 
 
 ```{r}
@@ -335,10 +337,8 @@ ggplot(adult, aes(x = hours_per_week, y = income, fill = income)) +
 
 ```{r}
 adult_clean <- adult %>%
-  filter(!is.na(occupation_group) & !is.na(region)) %>% select(-age, -education, -marital_status, -native_country, -relationship, -occupation, -workclass, -workclass_grp)
+  filter(!is.na(occupation_group) & !is.na(region)) %>% select(-age, -education, -marital_status, -native_country, -relationship, -occupation, -workclass)
 ```
-
-`workclass_grp` turi NA reikšmių.
 
 ```{r}
 adult[rowSums(is.na(adult)) > 0, ]
@@ -365,6 +365,7 @@ table(adult_clean$income)
 #is esmes tai kad turime tiek daug kategoriniu neleidzia taikyti SMOTE,
 #teks apsieiti tik su slenkscio koregavimu
 ```
+
 # logit probit cloglog
 
 ```{r}
@@ -376,6 +377,7 @@ summary(adult_logit_1)
 pearson_residuals <- glm.diag(adult_logit_1)$rp
 plot(pearson_residuals, pch="*", cex=2)
 ```
+
 ```{r}
 length(pearson_residuals[pearson_residuals < -3 | pearson_residuals > 3])
 ```
@@ -388,32 +390,40 @@ plot(cooksd, pch="*", cex=2)
 outliers <- cooksd[cooksd>1]
 outliers
 ```
+Pagal Kuko matą išskirčių nėra.
 
 ```{r}
-train[3565, ]
-```
-
-Fizinį darbą dirbantis mokyklos nebaigęs jaunas vyras, kurio pelnas iš akcijų siekia 41310 ir kuris dirba tik 24 valandas per savaitę.
-
-```{r}
-adult_logit_2 <- glm(income ~ ., data = train, family = binomial(link = "logit"))
+adult_logit_2 <- glm(income ~ . - education_category, data = train, family = binomial(link = "logit"))
 summary(adult_logit_2)
 ```
 
 ```{r}
-cooksd <- cooks.distance(adult_logit_2)
-plot(cooksd, pch="*", cex=2)
-outliers <- cooksd[cooksd>1]
-outliers
+adult_logit_3 <- glm(income ~ . - education_category - region, data = train, family = binomial(link = "logit"))
+summary(adult_logit_3)
 ```
 
 
 ```{r}
-pred_prob <- predict(adult_logit_2, newdata = test, type = "response")
+pred_prob <- predict(adult_logit_3, newdata = test, type = "response")
 pred_class <- factor(ifelse(pred_prob > 0.5, "1", "0"), levels = levels(test$income))
 
-confusionMatrix(pred_class, test$income)
+cm <- confusionMatrix(pred_class, test$income)
+print(cm)
 ```
+
+```{r}
+library(cutpointr)
+
+cutpoint <- cutpointr(test, pred_prob, income, method = maximize_metric, metric = youden, na.rm = TRUE)
+```
+
+```{r}
+pred_class_2 <- factor(ifelse(pred_prob > 0.209, "1", "0"), levels = levels(test$income))
+
+cm <- confusionMatrix(pred_class_2, test$income)
+print(cm)
+```
+
 
 ```{r}
 roc_obj <- roc(response = test$income,
