@@ -4,7 +4,7 @@ output: pdf_document
 date: "`r Sys.Date()`"
 ---
 
-```{r warning=FALSE}
+```{r message=FALSE, warning=FALSE}
 library(readr)
 library(dplyr)
 library(ggplot2)
@@ -19,7 +19,7 @@ library(cutpointr) # Optimalus slekstis
 
 # Tikslas:
 
-Sudaryti binaraus atsako modelį, gebantį prognozuoti, ar žmogus uždirba daugiau nei 50 tūkst. dolerių per metus.
+Sudaryti binarinio atsako modelį, gebantį prognozuoti, ar žmogus uždirba daugiau nei 50 tūkst. dolerių per metus.
 
 # Uždaviniai:
 
@@ -308,11 +308,13 @@ table(adult$has_sold_stocks, adult$income)
 ```
 
 ```{r}
-ggplot(adult, aes(x = age, y = income, fill = income)) +
-  geom_density_ridges(alpha = 0.7)
-  theme_ridges() + 
+ggplot(adult, aes(x = age, fill = income)) +
+  geom_bar() + 
+  facet_grid(income ~ .) + 
   theme(legend.position = "none")
 ```
+
+
 
 ```{r}
 ggplot(adult, aes(x = income, y = age, fill = income)) +
@@ -320,7 +322,7 @@ ggplot(adult, aes(x = income, y = age, fill = income)) +
     theme_minimal()
 ```
 
-Aukštesnes pajamas gaunančių žmonių amžiaus mediana yra didesnė nei žemesnes pajamas gaunančių. Tarpkvartiliinis plotis taip pat žemesnes pajamas gaunačių didesnis (reiškia daug yra jaunų mažas gaunančių, daug yra senų mažai gaunančių.)
+Aukštesnes pajamas gaunančių žmonių amžiaus mediana yra didesnė nei žemesnes pajamas gaunančių. Tarpkvartilinis plotis taip pat žemesnes pajamas gaunačių didesnis (reiškia daug yra jaunų mažas gaunančių, daug yra senų mažai gaunančių.)
 
 
 ```{r}
@@ -367,7 +369,7 @@ table(adult_clean$income)
 #teks apsieiti tik su slenkscio koregavimu
 ```
 
-# logit probit cloglog
+### logit probit cloglog
 
 ```{r}
 adult_logit_1 <- glm(income ~ ., data = train, family = binomial(link = "logit"))
@@ -383,7 +385,7 @@ plot(pearson_residuals, pch="*", cex=2)
 length(pearson_residuals[pearson_residuals < -3 | pearson_residuals > 3])
 ```
 
-Labai daug išskirčių pagal Pirsono liekanas. Iš indekso matosi, kad po maždaug 18000-ojo indekso turime daug išskirčių: visi asmenų pajamos didesnės nei 50 tūkst. JAV dolerių (`income` = 1).
+Labai daug išskirčių pagal Pirsono liekanas. Iš indekso matosi, kad po maždaug 18000-ojo indekso turime daug išskirčių: visi asmenų pajamos didesnės nei 50 tūkst. JAV dolerių (`income` = 1). Modeliui sudėtinga prognozuoti įvykį. Kadangi logistinė regresija yra nejautri išskirtims, šių stebinių išskirtimis nelaikysime.
 
 ```{r}
 cooksd <- cooks.distance(adult_logit_1)
@@ -403,6 +405,7 @@ adult_logit_3 <- glm(income ~ . - education_category - region, data = train, fam
 summary(adult_logit_3)
 ```
 
+Išbandžius ir multiplikatyvius modelius, reikšmingų sąveikų tarp kovariančių neradome. 
 
 ```{r}
 pred_prob <- predict(adult_logit_3, newdata = test, type = "response")
@@ -413,30 +416,39 @@ print(cm)
 ```
 
 ```{r}
-cutpoint <- cutpointr(test, pred_prob, income, method = maximize_metric, metric = youden, na.rm = TRUE)
+cutpoint_logit <- cutpointr(test, pred_prob, income, method = maximize_metric, metric = youden, na.rm = TRUE)
+print(cutpoint_logit$optimal_cutpoint)
 ```
 
 ```{r}
 pred_class_2 <- factor(ifelse(pred_prob > 0.209, "1", "0"), levels = levels(test$income))
 
-cm <- confusionMatrix(pred_class_2, test$income)
-print(cm)
+cm_2 <- confusionMatrix(pred_class_2, test$income)
+print(cm_2)
 ```
 
 
 ```{r}
-roc_obj <- pROC::roc(response = test$income,
+roc_logit <- pROC::roc(response = test$income,
                predictor = pred_prob,
                levels = c("0", "1"))
 
-plot(roc_obj, xlim = c(1, 0),
+plot(roc_logit, xlim = c(1, 0),
      ylim = c(0, 1),
       xaxs = "i",
-     yaxs = "i",)
-abline(a = 0, b = 1, lty = 2, col = "gray")
+     yaxs = "i",
+     col='red')
+
+legend(
+  "bottomright",
+  legend = paste("AUC =", round(auc_val, 3)),
+  col = "red",
+  lwd = 2,
+  bty = "n"
+)
 ```
 
-TODO: surasti optimalu slenksti
+
 
 ```{r}
 adult_probit <- glm(income ~ ., data = train, family = binomial(link = "probit"))
