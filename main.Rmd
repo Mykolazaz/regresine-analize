@@ -12,6 +12,8 @@ library(ggridges)
 library(rsample)
 library(caret)
 library(pROC)
+library(car) # gVIF
+library(boot) # Pirsono liekanos
 ```
 
 # Tikslas:
@@ -191,10 +193,10 @@ adult$workclass_grp <- case_when(
   adult$workclass %in% c("Federal-gov", "Local-gov", "State-gov") ~ "Government",
   adult$workclass %in% c("Self-emp-inc", "Self-emp-not-inc") ~ "Self-employed",
   adult$workclass == "Private" ~ "Private",
-  adult$workclass == "Without-pay" ~ "Without-pay",
   TRUE ~ NA
 )
 ```
+
 
 ```{r, nauju kategoriniu  dazniai}
 print("region:")
@@ -214,7 +216,11 @@ table(adult$occupation_group)
 table(adult$income)
 ```
 
-"0" apie 3 kartus daugiau nei "1". Šitą problemą spręsti reiks arba slenkstį koreguojant, arba balansuojant grupes. Sakė galime daryti šių metodų palyginimus.
+```{r}
+7841 / (7841 + 24720)
+```
+
+0 sudaro 24 % duomenų aibės. Šitą problemą spręsti reiks arba slenkstį koreguojant, arba balansuojant grupes. Sakė galime daryti šių metodų palyginimus.
 
 ```{r}
 create_plot(adult, "region", type = "count")
@@ -329,7 +335,17 @@ ggplot(adult, aes(x = hours_per_week, y = income, fill = income)) +
 
 ```{r}
 adult_clean <- adult %>%
-  filter(!is.na(occupation_group) & !is.na(region)) %>% select(-age, -education, -marital_status, -native_country, -relationship, -occupation, -workclass)
+  filter(!is.na(occupation_group) & !is.na(region)) %>% select(-age, -education, -marital_status, -native_country, -relationship, -occupation, -workclass, -workclass_grp)
+```
+
+`workclass_grp` turi NA reikšmių.
+
+```{r}
+adult[rowSums(is.na(adult)) > 0, ]
+```
+
+```{r}
+vif(glm(income ~ ., data = adult_clean, family = binomial))
 ```
 
 
@@ -344,6 +360,7 @@ test  <- testing(split)
 ```{r}
 table(adult_clean$income)
 ```
+
 ```{r, balansavimas}
 #is esmes tai kad turime tiek daug kategoriniu neleidzia taikyti SMOTE,
 #teks apsieiti tik su slenkscio koregavimu
@@ -351,19 +368,54 @@ table(adult_clean$income)
 # logit probit cloglog
 
 ```{r}
-adult_logit <- glm(income ~ ., data = train, family = binomial(link = "logit"))
-summary(adult_logit)
+adult_logit_1 <- glm(income ~ ., data = train, family = binomial(link = "logit"))
+summary(adult_logit_1)
 ```
 
 ```{r}
-pred_prob <- predict(adult_logit, newdata = test, type = "response")
+pearson_residuals <- glm.diag(adult_logit_1)$rp
+plot(pearson_residuals, pch="*", cex=2)
+```
+```{r}
+length(pearson_residuals[pearson_residuals < -3 | pearson_residuals > 3])
+```
+
+Labai daug išskirčių pagal Pirsono liekanas.
+
+```{r}
+cooksd <- cooks.distance(adult_logit_1)
+plot(cooksd, pch="*", cex=2)
+outliers <- cooksd[cooksd>1]
+outliers
+```
+
+```{r}
+train[3565, ]
+```
+
+Fizinį darbą dirbantis mokyklos nebaigęs jaunas vyras, kurio pelnas iš akcijų siekia 41310 ir kuris dirba tik 24 valandas per savaitę.
+
+```{r}
+adult_logit_2 <- glm(income ~ ., data = train, family = binomial(link = "logit"))
+summary(adult_logit_2)
+```
+
+```{r}
+cooksd <- cooks.distance(adult_logit_2)
+plot(cooksd, pch="*", cex=2)
+outliers <- cooksd[cooksd>1]
+outliers
+```
+
+
+```{r}
+pred_prob <- predict(adult_logit_2, newdata = test, type = "response")
 pred_class <- factor(ifelse(pred_prob > 0.5, "1", "0"), levels = levels(test$income))
 
 confusionMatrix(pred_class, test$income)
 ```
 
 ```{r}
-
 roc_obj <- roc(response = test$income,
                predictor = pred_prob,
                levels = c("0", "1"))
