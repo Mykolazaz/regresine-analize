@@ -27,6 +27,9 @@ Sudaryti binarinio atsako modelį, gebantį prognozuoti, ar žmogus uždirba dau
 -   Nustatyti, kurie veiksniai geriausiai prognozuoja, ar žmogus uždirba daugiau nei 50 tūkst. JAV dolerių per metus;
 -   Prognozuoti, ar žmogus uždirba daugiau nei 50 tūkst. JAV dolerių per metus.
 
+
+# Data clean
+
 ```{r, warning=FALSE}
 adult <- read_csv("./data/adult.data", col_names = FALSE)
 colnames(adult) <- c("age", "workclass", "fnlwgt", "education", "education_num",
@@ -217,7 +220,12 @@ table(adult$workclass_grp)
 adult[is.na(adult$region),]
 ```
 
-EA: ar mum sukurus naujas kategoriniu kintamuju grupes nereiketu droppint musu senu?
+Kadangi turime pilno atskiriamumo problema pagal education_category, tai siauriname
+
+```{r}
+adult <- adult %>%
+  filter(!(education_category %in% c("Primary","None")))
+```
 
 ```{r}
 #paziurim kuriose naujose kategorijose yra NA reiksmiu (region, education category, marital_category, occupation_group, workclass_grp)
@@ -229,28 +237,26 @@ salinam NA reiksmes, teciau jeigu pasirodys taip, kad sitie kintamieji nera stat
 ```{r}
 adult_with_na <- adult #issisaugom jeigu nereiksmingi
 adult <- adult %>%
-  filter(!is.na(occupation_group) & !is.na(workclass_grp))
+  filter(!is.na(occupation_group) & !is.na(workclass_grp) & !is.na(region))
 #pasalinom 2413 irasu, t. y. 7% visu stebejimu
 ```
 
 ```{r}
-(nrow(adult_with_na)-nrow(adult))/nrow(adult_with_na)
+colSums(is.na(adult))
+```
+
+```{r}
+(nrow(adult_with_na)-nrow(adult))/nrow(adult_with_na) #7 procentai
 ```
 ```{r}
 #vel pasiziurim kur NA's yra 
 names(adult)[colSums(is.na(adult)) > 0] #niekur!
 ```
 
-```{r}
-table(adult$income)
-```
 
-```{r}
-7841 / (7841 + 24720) #su NA's
-7508 / (7508 + 22640) #be NA's
-```
+1 sudaro tik 25 % duomenų aibės. Šitą problemą spręsti reiks arba slenkstį koreguojant, arba balansuojant grupes. Sakė galime daryti šių metodų palyginimus.
 
-0 sudaro 24 % duomenų aibės. Šitą problemą spręsti reiks arba slenkstį koreguojant, arba balansuojant grupes. Sakė galime daryti šių metodų palyginimus.
+# Pradine duomenu analize
 
 ```{r}
 create_plot(adult, "region", type = "count")
@@ -290,8 +296,6 @@ create_plot(adult, "marital_category", type = "count")
 create_plot(adult, "marital_category", type = "prop")
 ```
 
-su Never-worked ir without-pay turime dalinio atskiriamumo problemą. EA: bet ruta lev sake kad ismest, nes ten kai NA's tai cia kaip ir nebesvarbu?
-
 ```{r, occupation changed}
 create_plot(adult, "occupation_group",type="prop")
 ```
@@ -301,17 +305,8 @@ Sujungus duomenis šios problemos nebėra. Tik reiktų paaiškinti, kodėl taip 
 ```{r, occupation changed count}
 create_plot(adult, "occupation_group",type="count")
 ```
-
-```{r}
-create_plot(adult, "occupation_group", type = "prop")
-```
-
 ```{r, warning=FALSE}
 create_plot(adult, "workclass_grp",type="count")
-```
-
-```{r}
-table(adult$workclass_grp) #bruh without-pay tiesiog trint lauk
 ```
 
 ```{r}
@@ -338,13 +333,13 @@ create_plot(adult, "workclass_grp",type="prop")
 
 `capital_gain` ir `capital_loss` kintamieji labai įtartini, kadangi kintamojo `capital_gain` daug reikšmių kartojasi keletai asmenų. Šį kintamąjį laikysime nepatikimu ir sukursime naują kintamąjį, kuris rodys, ar asmuo yra pardavęs akcijų (apytikslis atitikmuo kintamąjam, ar žmogus turi akcijų).
 
-EA: gerai jeigu darom sita, tai reikia ji deti pire nauju kintamuju apskaiciavimo duomenu sutvarkymo ir paruosimo skiltyje?
+EA: gerai jeigu darom sita, tai reikia ji deti prie nauju kintamuju apskaiciavimo duomenu sutvarkymo ir paruosimo skiltyje?
 
 ```{r}
 adult <- adult %>%
   mutate(has_sold_stocks = ifelse(capital_gain > 0 | capital_loss > 0, 1, 0))
 
-adult <- subset(adult, select = -c(capital_gain, capital_loss)) #EA: cia gal dar reiktu pavadinti kitaip, nes dabar 0 1 sold_stocks maisosi su 0 1 income label'iu
+adult <- subset(adult, select = -c(capital_gain, capital_loss)) 
 ```
 
 ```{r}
@@ -410,16 +405,15 @@ test  <- testing(split)
 ```{r}
 table(adult_clean$income)
 ```
-
-```{r, balansavimas}
-#is esmes tai kad turime tiek daug kategoriniu neleidzia taikyti SMOTE,
-#teks apsieiti tik su slenkscio koregavimu
+```{r}
+table(adult_clean$income)[[2]]/ (table(adult_clean$income)[[2]] + table(adult_clean$income)[[1]]) # NA's
 ```
+Reiks balansuoti
 
-### logit probit cloglog
 
+# logit probit cloglog
 
-####logit modelis
+## logit modelis
 ```{r}
 vif(glm(income ~ ., data = adult_clean, family = binomial(link="logit")))
 ```
@@ -439,27 +433,10 @@ plot(pearson_residuals, pch="*", cex=2,
 
 dev.off()
 ```
-
+Pastaba surusiavo pagal atsaka paketas kuris ima sluoksnine imti.
 ```{r}
 length(pearson_residuals[pearson_residuals < -3 | pearson_residuals > 3])
 ```
-
-```{r}
-names(pearson_residuals[pearson_residuals > 40])
-```
-
-```{r}
-train[as.integer(names(pearson_residuals[pearson_residuals > 40])),]
-```
-
-```{r}
-adult[adult$income == 1 & adult$age_category == '0-24' & adult$education_category == 'Primary', ]
-temp_train=train
-train=train[-as.integer(names(pearson_residuals[pearson_residuals > 40])), ]
-
-```
-
-Išskirtis 24061 - 22 metų valytojas, uždirbantis daugiau nei 50 tūkst. JAV dolerių. Aiškiai matosi, kad duomenyse yra daug netikslumų, potencialių klaidų, kylančių iš įtartinų pajamų deklaracijų.
 
 Labai daug išskirčių pagal Pirsono liekanas. Iš indekso matosi, kad po maždaug 18000-ojo indekso turime daug išskirčių: visi asmenų pajamos didesnės nei 50 tūkst. JAV dolerių (`income` = 1). Modeliui sudėtinga prognozuoti įvykį. Kadangi logistinė regresija yra nejautri išskirtims, šių stebinių išskirtimis nelaikysime.
 
@@ -475,7 +452,6 @@ dev.off()
 ```
 
 Pagal Kuko matą išskirčių nėra.
-Konstatuojam klaidą išimame
 ```{r}
 adult_logit_1 <- glm(income ~ ., data = train, family = binomial(link = "logit"))
 summary(adult_logit_1)
@@ -547,7 +523,7 @@ legend(
   bty = "n"
 )
 ```
-#### probit modelis
+## probit modelis
 ```{r}
 vif(glm(income ~ ., data = adult_clean, family = binomial(link="probit")))
 ```
@@ -638,7 +614,7 @@ legend(
 )
 ```
 
-#### cloglog modelis
+## cloglog modelis
 ```{r}
 vif(glm(income ~ ., data = adult_clean, family = binomial(link="cloglog")))
 ```
