@@ -479,7 +479,7 @@ print(cutpoint_logit$optimal_cutpoint)
 ```
 
 ```{r}
-pred_class_2 <- factor(ifelse(pred_prob > 0.2094109, "1", "0"), levels = levels(test$income))
+pred_class_2 <- factor(ifelse(pred_prob > 0.2312705, "1", "0"), levels = levels(test$income))
 
 cm_2 <- confusionMatrix(pred_class_2, test$income)
 print(cm_2)
@@ -489,6 +489,8 @@ print(cm_2)
 roc_logit <- pROC::roc(response = test$income,
                predictor = pred_prob,
                levels = c("0", "1"))
+
+auc_val <- pROC::auc(roc_logit)
 
 plot(roc_logit, xlim = c(1, 0),
      ylim = c(0, 1),
