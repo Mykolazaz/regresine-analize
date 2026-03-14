@@ -23,9 +23,9 @@ Sudaryti binarinio atsako modelį, gebantį prognozuoti, ar žmogus uždirba dau
 
 # Uždaviniai:
 
-- Atliekant tiriamąją duomenų analizę atsirinkti bei sukonstruoti uždarbio slenksčio perkopimą prognozuojančius požymius;
-- Nustatyti, kurie veiksniai geriausiai prognozuoja, ar žmogus uždirba daugiau nei 50 tūkst. JAV dolerių per metus;
-- Prognozuoti, ar žmogus uždirba daugiau nei 50 tūkst. JAV dolerių per metus.
+-   Atliekant tiriamąją duomenų analizę atsirinkti bei sukonstruoti uždarbio slenksčio perkopimą prognozuojančius požymius;
+-   Nustatyti, kurie veiksniai geriausiai prognozuoja, ar žmogus uždirba daugiau nei 50 tūkst. JAV dolerių per metus;
+-   Prognozuoti, ar žmogus uždirba daugiau nei 50 tūkst. JAV dolerių per metus.
 
 ```{r, warning=FALSE}
 adult <- read_csv("./data/adult.data", col_names = FALSE)
@@ -197,7 +197,6 @@ adult$workclass_grp <- case_when(
 )
 ```
 
-
 ```{r, nauju kategoriniu  dazniai}
 print("region:")
 table(adult$region)
@@ -211,13 +210,32 @@ print("occupation_group:")
 table(adult$occupation_group)
 ```
 
+```{r}
+#paziurim kuriose naujose kategorijose yra NA reiksmiu (region, education category, marita_category, occupation_group, workclass_grp)
+names(adult)[colSums(is.na(adult)) > 0]
+```
+
+salinam NA reiksmes, teciau jeigu pasirodys taip, kad sitie kintamieji nera statistiskai reiksmingi musu modeliui, reikes juos grazinti
+
+```{r}
+adult_with_na <- adult #issisaugom jeigu nereiksmingi
+adult <- na.omit(adult)
+
+#pasalinom 2413 irasu, t. y. 7% visu stebejimu
+```
+
+```{r}
+#vel pasiziurim kur NA's yra 
+names(adult)[colSums(is.na(adult)) > 0] #niekur!
+```
 
 ```{r}
 table(adult$income)
 ```
 
 ```{r}
-7841 / (7841 + 24720)
+7841 / (7841 + 24720) #su NA's
+7508 / (7508 + 22640) #be NA's
 ```
 
 0 sudaro 24 % duomenų aibės. Šitą problemą spręsti reiks arba slenkstį koreguojant, arba balansuojant grupes. Sakė galime daryti šių metodų palyginimus.
@@ -225,10 +243,12 @@ table(adult$income)
 ```{r}
 create_plot(adult, "region", type = "count")
 ```
+
 ```{r}
 create_plot(adult, "region", type = "prop")
 
 ```
+
 ```{r}
 create_plot(adult, "age_category", type = "count")
 ```
@@ -236,7 +256,9 @@ create_plot(adult, "age_category", type = "count")
 ```{r}
 create_plot(adult, "age_category", type = "prop")
 ```
+
 Praktiškai visi 0-24 grupėje yra mažas pajamas gaunantys, tačiau tai logiška -- paliekame.
+
 ```{r}
 create_plot(adult, "education_category", type = "count")
 
@@ -245,11 +267,13 @@ create_plot(adult, "education_category", type = "count")
 ```{r}
 create_plot(adult, "education_category", type = "prop")
 ```
+
 Atskiriamumas pagal `None`, taip pat logiškas rezultatas;
 
 ```{r}
 create_plot(adult, "marital_category", type = "count")
 ```
+
 ```{r}
 create_plot(adult, "marital_category", type = "prop")
 ```
@@ -260,13 +284,17 @@ su Never-worked ir without-pay turime dalinio atskiriamumo problemą.
 create_plot(adult, "occupation_group",type="prop")
 ```
 
-Sujungus duomenis šios problemos nebėra. Tik reiktų paaiškinti, kodėl taip sujungėme. 
+Sujungus duomenis šios problemos nebėra. Tik reiktų paaiškinti, kodėl taip sujungėme.
 
 ```{r, occupation changed count}
 create_plot(adult, "occupation_group",type="count")
 ```
 
 ```{r}
+create_plot(adult, "occupation_group", type = "prop")
+```
+
+```{r, warning=FALSE}
 create_plot(adult, "workclass_grp",type="count")
 ```
 
@@ -278,20 +306,22 @@ table(adult$workclass_grp) #bruh without-pay tiesiog trint lauk
 create_plot(adult, "workclass_grp",type="prop")
 ```
 
-
 ```{r}
-ggplot(adult, aes(x = capital_gain, y = income, fill = income)) +
-  geom_density_ridges(alpha = 0.7)
-  theme_ridges() + 
-  theme(legend.position = "none")
+#ggplot(adult, aes(x = capital_gain, y = income, fill = income)) +
+#  geom_density_ridges(alpha = 0.7)
+#  theme_ridges() + 
+#  theme(legend.position = "none")
+
+#sake capital_gain nenaudoti
 ```
 
-
 ```{r}
-ggplot(adult, aes(x = capital_loss, y = income, fill = income)) +
-  geom_density_ridges(alpha = 0.7)
-  theme_ridges() + 
-  theme(legend.position = "none")
+#ggplot(adult, aes(x = capital_loss, y = income, fill = income)) +
+#  geom_density_ridges(alpha = 0.7)
+#  theme_ridges() + 
+#  theme(legend.position = "none")
+
+#capital_loss irgi nenaudojam
 ```
 
 `capital_gain` ir `capital_loss` kintamieji labai įtartini, kadangi kintamojo `capital_gain` daug reikšmių kartojasi keletai asmenų. Šį kintamąjį laikysime nepatikimu ir sukursime naują kintamąjį, kuris rodys, ar asmuo yra pardavęs akcijų (apytikslis atitikmuo kintamąjam, ar žmogus turi akcijų).
@@ -308,13 +338,11 @@ table(adult$has_sold_stocks, adult$income)
 ```
 
 ```{r}
-ggplot(adult, aes(x = age, fill = income)) +
-  geom_bar() + 
-  facet_grid(income ~ .) + 
+ggplot(adult, aes(x = age, y = income, fill = income)) +
+  geom_density_ridges(alpha = 0.7)
+  theme_ridges() + 
   theme(legend.position = "none")
 ```
-
-
 
 ```{r}
 ggplot(adult, aes(x = income, y = age, fill = income)) +
@@ -323,7 +351,6 @@ ggplot(adult, aes(x = income, y = age, fill = income)) +
 ```
 
 Aukštesnes pajamas gaunančių žmonių amžiaus mediana yra didesnė nei žemesnes pajamas gaunančių. Tarpkvartilinis plotis taip pat žemesnes pajamas gaunačių didesnis (reiškia daug yra jaunų mažas gaunančių, daug yra senų mažai gaunančių.)
-
 
 ```{r}
 ggplot(adult, aes(x = income, y = hours_per_week, fill = income)) +
@@ -338,19 +365,13 @@ ggplot(adult, aes(x = hours_per_week, y = income, fill = income)) +
   theme(legend.position = "none")
 ```
 
-
 ```{r}
 adult_clean <- adult %>% select(-age, -education, -marital_status, -native_country, -relationship, -occupation, -workclass)
 ```
 
 ```{r}
-adult[rowSums(is.na(adult)) > 0, ]
-```
-
-```{r}
 vif(glm(income ~ ., data = adult_clean, family = binomial))
 ```
-
 
 ```{r, train/test split}
 set.seed(80085)
@@ -407,6 +428,7 @@ plot(cooksd, pch="*", cex=2)
 outliers <- cooksd[cooksd>1]
 outliers
 ```
+
 Pagal Kuko matą išskirčių nėra.
 
 ```{r}
@@ -419,7 +441,7 @@ adult_logit_3 <- glm(income ~ . - education_category - region, data = train, fam
 summary(adult_logit_3)
 ```
 
-Išbandžius ir multiplikatyvius modelius, reikšmingų sąveikų tarp kovariančių neradome. 
+Išbandžius ir multiplikatyvius modelius, reikšmingų sąveikų tarp kovariančių neradome.
 
 ```{r}
 pred_prob <- predict(adult_logit_3, newdata = test, type = "response")
@@ -441,7 +463,6 @@ cm_2 <- confusionMatrix(pred_class_2, test$income)
 print(cm_2)
 ```
 
-
 ```{r}
 roc_logit <- pROC::roc(response = test$income,
                predictor = pred_prob,
@@ -461,8 +482,6 @@ legend(
   bty = "n"
 )
 ```
-
-
 
 ```{r}
 adult_probit <- glm(income ~ ., data = train, family = binomial(link = "probit"))
