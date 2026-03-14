@@ -431,9 +431,14 @@ summary(adult_logit_1)
 BIC(adult_logit_1)
 ```
 
-```{r}
+```{r, fig.width=9, fig.height=6}
+png("pearson_logit.png", width=8, height=5, units="in", res=300)
+
 pearson_residuals <- glm.diag(adult_logit_1)$rp
-plot(pearson_residuals, pch="*", cex=2)
+plot(pearson_residuals, pch="*", cex=2,
+     xlab="Indeksas", ylab="Pirsono liekanos")
+
+dev.off()
 ```
 
 ```{r}
@@ -457,12 +462,17 @@ Išskirtis 24061 - 22 metų valytojas, uždirbantis daugiau nei 50 tūkst. JAV d
 
 Labai daug išskirčių pagal Pirsono liekanas. Iš indekso matosi, kad po maždaug 18000-ojo indekso turime daug išskirčių: visi asmenų pajamos didesnės nei 50 tūkst. JAV dolerių (`income` = 1). Modeliui sudėtinga prognozuoti įvykį. Kadangi logistinė regresija yra nejautri išskirtims, šių stebinių išskirtimis nelaikysime.
 
-```{r}
+```{r, fig.width=9, fig.height=6}
+png("cook_logit.png", width=8, height=5, units="in", res=300)
+
 cooksd <- cooks.distance(adult_logit_1)
-plot(cooksd, pch="*", cex=2)
+plot(cooksd, pch="*", cex=2, xlab="Indeksas", ylab="Kuko atstumas")
 outliers <- cooksd[cooksd>1]
 outliers
+
+dev.off()
 ```
+
 Pagal Kuko matą išskirčių nėra.
 Konstatuojam klaidą išimame
 ```{r}
@@ -487,6 +497,11 @@ adult_logit_3 <- glm(income ~ . - education_category - region, data = train, fam
 summary(adult_logit_3)
 BIC(adult_logit_3)
 ```
+
+```{r}
+confint(adult_logit_3)
+```
+
 
 Išbandžius ir multiplikatyvius modelius, reikšmingų sąveikų tarp kovariančių neradome.
 
