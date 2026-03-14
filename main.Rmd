@@ -19,6 +19,8 @@ library(cutpointr) # Optimalus slekstis
 
 # Tikslas:
 
+TODO: siaurinti tiksla (pagal education)
+
 Sudaryti binarinio atsako modelį, gebantį prognozuoti, ar žmogus uždirba daugiau nei 50 tūkst. dolerių per metus.
 
 # Uždaviniai:
@@ -274,8 +276,10 @@ create_plot(adult, "age_category", type = "count")
 ```{r}
 create_plot(adult, "age_category", type = "prop")
 ```
-
-Praktiškai visi 0-24 grupėje yra mažas pajamas gaunantys, tačiau tai logiška -- paliekame.
+```{r}
+prop.table(table(adult$age_category, adult$income),1)
+```
+Praktiškai visi 0-24 grupėje yra mažas pajamas gaunantys, tačiau tai logiška -- paliekame. Bet verta pamineti kad mazai ju labai. 
 
 ```{r}
 create_plot(adult, "education_category", type = "count")
@@ -452,38 +456,26 @@ dev.off()
 ```
 
 Pagal Kuko matą išskirčių nėra.
-```{r}
-adult_logit_1 <- glm(income ~ ., data = train, family = binomial(link = "logit"))
-summary(adult_logit_1)
-```
-```{r}
-pearson_residuals <- glm.diag(adult_logit_1)$rp
-plot(pearson_residuals, pch="*", cex=2)
-```
-
-
 
 ```{r}
-adult_logit_2 <- glm(income ~ . - education_category, data = train, family = binomial(link = "logit"))
-summary(adult_logit_2)
-BIC(adult_logit_2)
+# adult_logit_2 <- glm(income ~ . - education_category, data = train, family = binomial(link = "logit"))
+# summary(adult_logit_2)
+# BIC(adult_logit_2)
 ```
 
 ```{r}
-adult_logit_3 <- glm(income ~ . - education_category - region, data = train, family = binomial(link = "logit"))
-summary(adult_logit_3)
-BIC(adult_logit_3)
+# adult_logit_3 <- glm(income ~ . - education_category - region, data = train, family = binomial(link = "logit"))
+# summary(adult_logit_3)
+# BIC(adult_logit_3)
 ```
 
 ```{r}
-confint(adult_logit_3)
+# confint(adult_logit_3)
 ```
-
-
 Išbandžius ir multiplikatyvius modelius, reikšmingų sąveikų tarp kovariančių neradome.
 
 ```{r}
-pred_prob <- predict(adult_logit_3, newdata = test, type = "response")
+pred_prob <- predict(adult_logit_1, newdata = test, type = "response")
 pred_class <- factor(ifelse(pred_prob > 0.5, "1", "0"), levels = levels(test$income))
 
 cm <- confusionMatrix(pred_class, test$income)
@@ -497,7 +489,7 @@ print(cutpoint_logit$optimal_cutpoint)
 ```
 
 ```{r}
-pred_class_2 <- factor(ifelse(pred_prob > 0.1982572, "1", "0"), levels = levels(test$income))
+pred_class_2 <- factor(ifelse(pred_prob > cutpoint_logit$optimal_cutpoint, "1", "0"), levels = levels(test$income))
 cm_2 <- confusionMatrix(pred_class_2, test$income)
 print(cm_2)
 
@@ -529,7 +521,6 @@ vif(glm(income ~ ., data = adult_clean, family = binomial(link="probit")))
 ```
 
 ```{r}
-train=temp_train
 adult_probit <- glm(income ~ ., data = train, family = binomial(link = "probit"))
 summary(adult_probit)
 ```
@@ -548,33 +539,24 @@ plot(pearson_residuals_probit, pch="*", cex=2)
 length(pearson_residuals_probit[pearson_residuals_probit < -3 | pearson_residuals_probit > 3])
 ```
 ```{r}
-pearson_residuals_probit[pearson_residuals_probit > 40]
-```
-```{r}
-train<-train[-as.integer(names(pearson_residuals_probit[pearson_residuals_probit > 40])), ]
-```
-
-
-
-```{r}
-adult_probit_2 <- glm(income ~ . - education_category, data = train, family = binomial(link = "probit"))
-summary(adult_probit_2)
+# adult_probit_2 <- glm(income ~ . - education_category, data = train, family = binomial(link = "probit"))
+# summary(adult_probit_2)
 
 ```
 ```{r}
-adult_probit_3 <- glm(income ~ . -education_category -region, data = train, family = binomial(link = "probit"))
-summary(adult_probit_3)
+# adult_probit_3 <- glm(income ~ . -education_category -region, data = train, family = binomial(link = "probit"))
+# summary(adult_probit_3)
 ```
 
 ```{r}
-adult_probit_4 <- glm(income ~ . -education_category -region -workclass_grp, data = train, family = binomial(link = "probit"))
-summary(adult_probit_4)
+# adult_probit_4 <- glm(income ~ . -education_category -region -workclass_grp, data = train, family = binomial(link = "probit"))
+# summary(adult_probit_4)
 ```
 
 
 
 ```{r}
-pred_prob_probit <- predict(adult_probit_4, newdata = test, type = "response")
+pred_prob_probit <- predict(adult_probit, newdata = test, type = "response")
 pred_class_probit <- factor(ifelse(pred_prob_probit > 0.5, "1", "0"), levels = levels(test$income))
 cm_probit <- confusionMatrix(pred_class_probit, test$income)
 print(cm_probit)
@@ -586,7 +568,7 @@ print(cutpoint_probit$optimal_cutpoint)
 ```
 
 ```{r}
-pred_class_probit <- factor(ifelse(pred_prob_probit > 0.237279, "1", "0"), levels = levels(test$income))
+pred_class_probit <- factor(ifelse(pred_prob_probit > cutpoint_probit$optimal_cutpoint, "1", "0"), levels = levels(test$income))
 cm_probit <- confusionMatrix(pred_class_probit, test$income)
 print(cm_probit)
 ```
@@ -619,10 +601,6 @@ legend(
 vif(glm(income ~ ., data = adult_clean, family = binomial(link="cloglog")))
 ```
 ```{r}
-train=temp_train
-```
-
-```{r}
 adult_cloglog <- glm(income ~ ., data = train, family = binomial(link = "cloglog"))
 summary(adult_cloglog)
 ```
@@ -642,34 +620,27 @@ plot(pearson_residuals_cloglog, pch="*", cex=2)
 ```{r}
 length(pearson_residuals_cloglog[pearson_residuals_cloglog < -3 | pearson_residuals_cloglog > 3])
 ```
-```{r}
-pearson_residuals_cloglog[pearson_residuals_cloglog > 30]
-```
-```{r}
-train<-train[-as.integer(names(pearson_residuals_cloglog[pearson_residuals_cloglog > 30])), ]
-```
-
-
 
 ```{r}
-adult_cloglog_2 <- glm(income ~ . - education_category, data = train, family = binomial(link = "cloglog"))
-summary(adult_cloglog_2)
+# adult_cloglog_2 <- glm(income ~ . - education_category, data = train, family = binomial(link = "cloglog"))
+# summary(adult_cloglog_2)
 ```
 
 
 ```{r}
-pred_prob_cloglog <- predict(adult_cloglog_2, newdata = test, type = "response")
+pred_prob_cloglog <- predict(adult_cloglog, newdata = test, type = "response")
 pred_class_cloglog <- factor(ifelse(pred_prob_cloglog > 0.5, "1", "0"), levels = levels(test$income))
 cm_cloglog <- confusionMatrix(pred_class_cloglog, test$income)
 print(cm_cloglog)
 ```
+
 ```{r}
 cutpoint_cloglog <- cutpointr(test, pred_prob_cloglog, income, method = maximize_metric, metric = youden, na.rm = TRUE)
 print(cutpoint_cloglog$optimal_cutpoint)
 ```
 
 ```{r}
-pred_class_cloglog <- factor(ifelse(pred_prob_cloglog > 0.2092826, "1", "0"), levels = levels(test$income))
+pred_class_cloglog <- factor(ifelse(pred_prob_cloglog > cutpoint_cloglog$optimal_cutpoint, "1", "0"), levels = levels(test$income))
 cm_cloglog <- confusionMatrix(pred_class_cloglog, test$income)
 print(cm_cloglog)
 ```
