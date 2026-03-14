@@ -73,8 +73,12 @@ create_plot <- function(data, var_name, type = "prop") {
     theme(
       axis.text.x = element_text(angle = 45, hjust = 1),
       legend.position = "none"
-    )
-}
+    ) }
+```
+
+
+```{r}
+colSums(is.na(adult))
 ```
 
 ```{r}
@@ -217,13 +221,14 @@ EA: ar mum sukurus naujas kategoriniu kintamuju grupes nereiketu droppint musu s
 
 ```{r}
 #paziurim kuriose naujose kategorijose yra NA reiksmiu (region, education category, marital_category, occupation_group, workclass_grp)
-names(adult)[colSums(is.na(adult)) > 0]
+colSums(is.na(adult))
 ```
 
 salinam NA reiksmes, teciau jeigu pasirodys taip, kad sitie kintamieji nera statistiskai reiksmingi musu modeliui, reikes juos grazinti!!!!!
 
 ```{r}
 adult_with_na <- adult #issisaugom jeigu nereiksmingi
+colSums(is.na(adult))
 adult <- na.omit(adult)
 
 #pasalinom 2413 irasu, t. y. 7% visu stebejimu
