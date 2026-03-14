@@ -391,9 +391,6 @@ adult_clean <- adult %>% select(-age, -education, -marital_status, -native_count
 #EA: sita reikejo pries prie duomeny sutvarkymo ir paruosimo daryt realiai, tsg kad eiliskumas kodo biski tvarkingesnis butu
 ```
 
-```{r}
-vif(glm(income ~ ., data = adult_clean, family = binomial))
-```
 
 ```{r, train/test split}
 set.seed(80085)
@@ -414,9 +411,16 @@ table(adult_clean$income)
 
 ### logit probit cloglog
 
+
+####logit modelis
+```{r}
+vif(glm(income ~ ., data = adult_clean, family = binomial(link="logit")))
+```
+
 ```{r}
 adult_logit_1 <- glm(income ~ ., data = train, family = binomial(link = "logit"))
 summary(adult_logit_1)
+BIC(adult_logit_1)
 ```
 
 ```{r}
@@ -433,14 +437,14 @@ pearson_residuals[pearson_residuals > 40]
 ```
 
 ```{r}
-train[25983, ]
+train[24061, ]
 ```
 
 ```{r}
 adult[adult$income == 1 & adult$age_category == '0-24' & adult$education_category == 'Primary', ]
 ```
 
-Išskirtis 25983 - 22 metų valytojas, uždirbantis daugiau nei 50 tūkst. JAV dolerių. Aiškiai matosi, kad duomenyse yra daug netikslumų, potencialių klaidų, kylančių iš įtartinų pajamų deklaracijų.
+Išskirtis 24061 - 22 metų valytojas, uždirbantis daugiau nei 50 tūkst. JAV dolerių. Aiškiai matosi, kad duomenyse yra daug netikslumų, potencialių klaidų, kylančių iš įtartinų pajamų deklaracijų.
 
 Labai daug išskirčių pagal Pirsono liekanas. Iš indekso matosi, kad po maždaug 18000-ojo indekso turime daug išskirčių: visi asmenų pajamos didesnės nei 50 tūkst. JAV dolerių (`income` = 1). Modeliui sudėtinga prognozuoti įvykį. Kadangi logistinė regresija yra nejautri išskirtims, šių stebinių išskirtimis nelaikysime.
 
@@ -456,11 +460,13 @@ Pagal Kuko matą išskirčių nėra.
 ```{r}
 adult_logit_2 <- glm(income ~ . - education_category, data = train, family = binomial(link = "logit"))
 summary(adult_logit_2)
+BIC(adult_logit_2)
 ```
 
 ```{r}
 adult_logit_3 <- glm(income ~ . - education_category - region, data = train, family = binomial(link = "logit"))
 summary(adult_logit_3)
+BIC(adult_logit_3)
 ```
 
 Išbandžius ir multiplikatyvius modelius, reikšmingų sąveikų tarp kovariančių neradome.
@@ -473,6 +479,7 @@ cm <- confusionMatrix(pred_class, test$income)
 print(cm)
 ```
 
+
 ```{r}
 cutpoint_logit <- cutpointr(test, pred_prob, income, method = maximize_metric, metric = youden, na.rm = TRUE)
 print(cutpoint_logit$optimal_cutpoint)
@@ -480,7 +487,6 @@ print(cutpoint_logit$optimal_cutpoint)
 
 ```{r}
 pred_class_2 <- factor(ifelse(pred_prob > 0.2312705, "1", "0"), levels = levels(test$income))
-
 cm_2 <- confusionMatrix(pred_class_2, test$income)
 print(cm_2)
 ```
@@ -489,7 +495,6 @@ print(cm_2)
 roc_logit <- pROC::roc(response = test$income,
                predictor = pred_prob,
                levels = c("0", "1"))
-
 auc_val <- pROC::auc(roc_logit)
 
 plot(roc_logit, xlim = c(1, 0),
@@ -506,8 +511,127 @@ legend(
   bty = "n"
 )
 ```
+#### probit modelis
+```{r}
+vif(glm(income ~ ., data = adult_clean, family = binomial(link="probit")))
+```
 
 ```{r}
 adult_probit <- glm(income ~ ., data = train, family = binomial(link = "probit"))
 summary(adult_probit)
+```
+```{r}
+adult_probit_2 <- glm(income ~ . - education_category, data = train, family = binomial(link = "probit"))
+summary(adult_probit_2)
+
+```
+```{r}
+adult_probit_3 <- glm(income ~ . -education_category -region, data = train, family = binomial(link = "probit"))
+summary(adult_probit)
+```
+
+```{r}
+adult_probit_4 <- glm(income ~ . -education_category -region -workclass_grp, data = train, family = binomial(link = "probit"))
+summary(adult_probit)
+```
+
+
+
+```{r}
+pred_prob_probit <- predict(adult_probit_4, newdata = test, type = "response")
+pred_class_probit <- factor(ifelse(pred_prob_probit > 0.5, "1", "0"), levels = levels(test$income))
+cm_probit <- confusionMatrix(pred_class_probit, test$income)
+print(cm_probit)
+```
+
+```{r}
+cutpoint_probit <- cutpointr(test, pred_prob_probit, income, method = maximize_metric, metric = youden, na.rm = TRUE)
+print(cutpoint_probit$optimal_cutpoint)
+```
+
+```{r}
+pred_class_probit <- factor(ifelse(pred_prob_probit > 0.2081746, "1", "0"), levels = levels(test$income))
+cm_probit <- confusionMatrix(pred_class_probit, test$income)
+print(cm_probit)
+```
+
+
+```{r}
+roc_probit <- pROC::roc(response = test$income,
+               predictor = pred_prob_probit,
+               levels = c("0", "1"))
+
+
+auc_val_probit <- pROC::auc(roc_probit)
+
+plot(roc_probit, xlim = c(1, 0),
+     ylim = c(0, 1),
+      xaxs = "i",
+     yaxs = "i",
+     col='blue')
+legend(
+  "bottomright",
+  legend = paste("AUC =", round(auc_val_probit, 3)),
+  col = "blue",
+  lwd = 2,
+  bty = "n"
+)
+```
+
+#### cloglog modelis
+```{r}
+vif(glm(income ~ ., data = adult_clean, family = binomial(link="cloglog")))
+```
+
+
+```{r}
+adult_cloglog <- glm(income ~ ., data = train, family = binomial(link = "cloglog"))
+summary(adult_cloglog)
+```
+
+
+```{r}
+adult_cloglog_2 <- glm(income ~ . - education_category, data = train, family = binomial(link = "cloglog"))
+summary(adult_cloglog_2)
+```
+
+```{r}
+adult_cloglog_3 <- glm(income ~ . - education_category - region, data = train, family = binomial(link = "cloglog"))
+summary(adult_cloglog_3)
+```
+```{r}
+pred_prob_cloglog <- predict(adult_cloglog_3, newdata = test, type = "response")
+pred_class_cloglog <- factor(ifelse(pred_prob_cloglog > 0.5, "1", "0"), levels = levels(test$income))
+cm_cloglog <- confusionMatrix(pred_class_cloglog, test$income)
+print(cm_cloglog)
+```
+```{r}
+cutpoint_cloglog <- cutpointr(test, pred_prob_cloglog, income, method = maximize_metric, metric = youden, na.rm = TRUE)
+print(cutpoint_cloglog$optimal_cutpoint)
+```
+
+```{r}
+pred_class_cloglog <- factor(ifelse(pred_prob_cloglog > 0.2315001, "1", "0"), levels = levels(test$income))
+cm_cloglog <- confusionMatrix(pred_class_cloglog, test$income)
+print(cm_cloglog)
+```
+
+```{r}
+roc_cloglog <- pROC::roc(response = test$income,
+               predictor = pred_prob_cloglog,
+               levels = c("0", "1"))
+
+auc_val_cloglog <- pROC::auc(roc_cloglog)
+plot(roc_cloglog, xlim = c(1, 0),
+     ylim = c(0, 1),
+      xaxs = "i",
+     yaxs = "i",
+     col='orange')
+legend(
+  "bottomright",
+  legend = paste("AUC =", round(auc_val_probit, 5)),
+  col = "orange",
+  lwd = 2,
+  bty = "n"
+)
 ```
