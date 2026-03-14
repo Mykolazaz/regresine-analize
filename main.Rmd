@@ -353,7 +353,7 @@ table(adult$has_sold_stocks, adult$income)
 
 ```{r}
 ggplot(adult, aes(x = age, y = income, fill = income)) +
-  geom_density_ridges(alpha = 0.7)
+  geom_density_ridges(alpha = 0.7) +
   theme_ridges() + 
   theme(legend.position = "none")
 ```
@@ -386,7 +386,7 @@ ggplot(adult, aes(x = income, y = hours_per_week, fill = income)) +
 
 ```{r}
 ggplot(adult, aes(x = hours_per_week, y = income, fill = income)) +
-  geom_density_ridges(alpha = 0.7)
+  geom_density_ridges(alpha = 0.7) +
   theme_ridges() + 
   theme(legend.position = "none")
   
@@ -631,7 +631,7 @@ plot(roc_probit, xlim = c(1, 0),
      col='blue')
 legend(
   "bottomright",
-  legend = paste("AUC =", round(auc_val_probit, 5)),
+  legend = paste("AUC =", round(auc_val_probit, 3)),
   col = "blue",
   lwd = 2,
   bty = "n"
@@ -711,7 +711,7 @@ plot(roc_cloglog, xlim = c(1, 0),
      col='orange')
 legend(
   "bottomright",
-  legend = paste("AUC =", round(auc_val_probit, 5)),
+  legend = paste("AUC =", round(auc_val_cloglog, 3)),
   col = "orange",
   lwd = 2,
   bty = "n"
