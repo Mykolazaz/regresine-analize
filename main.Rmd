@@ -211,6 +211,7 @@ print("occupation_group:")
 table(adult$occupation_group)
 print("workclass_group:")
 table(adult$workclass_grp)
+adult[is.na(adult$region),]
 ```
 
 EA: ar mum sukurus naujas kategoriniu kintamuju grupes nereiketu droppint musu senu?
@@ -224,11 +225,14 @@ salinam NA reiksmes, teciau jeigu pasirodys taip, kad sitie kintamieji nera stat
 
 ```{r}
 adult_with_na <- adult #issisaugom jeigu nereiksmingi
-adult <- na.omit(adult)
-
+adult <- adult %>%
+  filter(!is.na(occupation_group) & !is.na(workclass_grp))
 #pasalinom 2413 irasu, t. y. 7% visu stebejimu
 ```
 
+```{r}
+(nrow(adult_with_na)-nrow(adult))/nrow(adult_with_na)
+```
 ```{r}
 #vel pasiziurim kur NA's yra 
 names(adult)[colSums(is.na(adult)) > 0] #niekur!
@@ -497,9 +501,10 @@ print(cutpoint_logit$optimal_cutpoint)
 ```
 
 ```{r}
-pred_class_2 <- factor(ifelse(pred_prob > 0.2304909, "1", "0"), levels = levels(test$income))
+pred_class_2 <- factor(ifelse(pred_prob > 0.1982572, "1", "0"), levels = levels(test$income))
 cm_2 <- confusionMatrix(pred_class_2, test$income)
 print(cm_2)
+
 ```
 
 ```{r}
@@ -561,7 +566,7 @@ print(cutpoint_probit$optimal_cutpoint)
 ```
 
 ```{r}
-pred_class_probit <- factor(ifelse(pred_prob_probit > 0.2077947, "1", "0"), levels = levels(test$income))
+pred_class_probit <- factor(ifelse(pred_prob_probit > 0.237279, "1", "0"), levels = levels(test$income))
 cm_probit <- confusionMatrix(pred_class_probit, test$income)
 print(cm_probit)
 ```
@@ -619,7 +624,7 @@ print(cutpoint_cloglog$optimal_cutpoint)
 ```
 
 ```{r}
-pred_class_cloglog <- factor(ifelse(pred_prob_cloglog > 0.2070902, "1", "0"), levels = levels(test$income))
+pred_class_cloglog <- factor(ifelse(pred_prob_cloglog > 0.2092826, "1", "0"), levels = levels(test$income))
 cm_cloglog <- confusionMatrix(pred_class_cloglog, test$income)
 print(cm_cloglog)
 ```
