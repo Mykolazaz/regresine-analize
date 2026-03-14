@@ -28,7 +28,6 @@ Sudaryti binarinio atsako modelį, gebantį prognozuoti, ar žmogus uždirba dau
 -   Prognozuoti, ar žmogus uždirba daugiau nei 50 tūkst. JAV dolerių per metus.
 
 ```{r, warning=FALSE}
-adult_original <- read_csv("./data/adult.data", col_names = FALSE)
 adult <- read_csv("./data/adult.data", col_names = FALSE)
 colnames(adult) <- c("age", "workclass", "fnlwgt", "education", "education_num",
                      "marital_status", "occupation", "relationship", "race",
@@ -441,16 +440,18 @@ length(pearson_residuals[pearson_residuals < -3 | pearson_residuals > 3])
 ```
 
 ```{r}
-pearson_residuals[pearson_residuals > 40]
+names(pearson_residuals[pearson_residuals > 40])
 ```
 
 ```{r}
-train[24061, ]
+train[as.integer(names(pearson_residuals[pearson_residuals > 40])),]
 ```
 
 ```{r}
 adult[adult$income == 1 & adult$age_category == '0-24' & adult$education_category == 'Primary', ]
-train=train[-24061, ]
+temp_train=train
+train=train[-as.integer(names(pearson_residuals[pearson_residuals > 40])), ]
+
 ```
 
 Išskirtis 24061 - 22 metų valytojas, uždirbantis daugiau nei 50 tūkst. JAV dolerių. Aiškiai matosi, kad duomenyse yra daug netikslumų, potencialių klaidų, kylančių iš įtartinų pajamų deklaracijų.
@@ -537,9 +538,33 @@ vif(glm(income ~ ., data = adult_clean, family = binomial(link="probit")))
 ```
 
 ```{r}
+train=temp_train
 adult_probit <- glm(income ~ ., data = train, family = binomial(link = "probit"))
 summary(adult_probit)
 ```
+```{r, kuko matas}
+cooksd_probit <- cooks.distance(adult_probit)
+plot(cooksd_probit, pch="*", cex=2)
+outliers_probit <- cooksd_probit[cooksd_probit>1]
+outliers_probit
+```
+
+```{r, pirsono liekanos}
+pearson_residuals_probit <- glm.diag(adult_probit)$rp
+plot(pearson_residuals_probit, pch="*", cex=2)
+```
+```{r, pirsono liekanos}
+length(pearson_residuals_probit[pearson_residuals_probit < -3 | pearson_residuals_probit > 3])
+```
+```{r}
+pearson_residuals_probit[pearson_residuals_probit > 40]
+```
+```{r}
+train<-train[-as.integer(names(pearson_residuals_probit[pearson_residuals_probit > 40])), ]
+```
+
+
+
 ```{r}
 adult_probit_2 <- glm(income ~ . - education_category, data = train, family = binomial(link = "probit"))
 summary(adult_probit_2)
@@ -602,12 +627,37 @@ legend(
 ```{r}
 vif(glm(income ~ ., data = adult_clean, family = binomial(link="cloglog")))
 ```
-
+```{r}
+train=temp_train
+```
 
 ```{r}
 adult_cloglog <- glm(income ~ ., data = train, family = binomial(link = "cloglog"))
 summary(adult_cloglog)
 ```
+```{r, kuko matas}
+cooksd_cloglog <- cooks.distance(adult_cloglog)
+plot(cooksd_cloglog, pch="*", cex=2)
+```
+```{r}
+outliers_cloglog <- cooksd_cloglog[cooksd_cloglog>1]
+outliers_cloglog
+```
+
+```{r, pirsono liekanos}
+pearson_residuals_cloglog <- glm.diag(adult_cloglog)$rp
+plot(pearson_residuals_cloglog, pch="*", cex=2)
+```
+```{r}
+length(pearson_residuals_cloglog[pearson_residuals_cloglog < -3 | pearson_residuals_cloglog > 3])
+```
+```{r}
+pearson_residuals_cloglog[pearson_residuals_cloglog > 30]
+```
+```{r}
+train<-train[-as.integer(names(pearson_residuals_cloglog[pearson_residuals_cloglog > 30])), ]
+```
+
 
 
 ```{r}
