@@ -442,6 +442,7 @@ train[24061, ]
 
 ```{r}
 adult[adult$income == 1 & adult$age_category == '0-24' & adult$education_category == 'Primary', ]
+train=train[-24061, ]
 ```
 
 Išskirtis 24061 - 22 metų valytojas, uždirbantis daugiau nei 50 tūkst. JAV dolerių. Aiškiai matosi, kad duomenyse yra daug netikslumų, potencialių klaidų, kylančių iš įtartinų pajamų deklaracijų.
@@ -454,8 +455,18 @@ plot(cooksd, pch="*", cex=2)
 outliers <- cooksd[cooksd>1]
 outliers
 ```
-
 Pagal Kuko matą išskirčių nėra.
+Konstatuojam klaidą išimame
+```{r}
+adult_logit_1 <- glm(income ~ ., data = train, family = binomial(link = "logit"))
+summary(adult_logit_1)
+```
+```{r}
+pearson_residuals <- glm.diag(adult_logit_1)$rp
+plot(pearson_residuals, pch="*", cex=2)
+```
+
+
 
 ```{r}
 adult_logit_2 <- glm(income ~ . - education_category, data = train, family = binomial(link = "logit"))
@@ -486,7 +497,7 @@ print(cutpoint_logit$optimal_cutpoint)
 ```
 
 ```{r}
-pred_class_2 <- factor(ifelse(pred_prob > 0.2312705, "1", "0"), levels = levels(test$income))
+pred_class_2 <- factor(ifelse(pred_prob > 0.2304909, "1", "0"), levels = levels(test$income))
 cm_2 <- confusionMatrix(pred_class_2, test$income)
 print(cm_2)
 ```
@@ -527,12 +538,12 @@ summary(adult_probit_2)
 ```
 ```{r}
 adult_probit_3 <- glm(income ~ . -education_category -region, data = train, family = binomial(link = "probit"))
-summary(adult_probit)
+summary(adult_probit_3)
 ```
 
 ```{r}
 adult_probit_4 <- glm(income ~ . -education_category -region -workclass_grp, data = train, family = binomial(link = "probit"))
-summary(adult_probit)
+summary(adult_probit_4)
 ```
 
 
@@ -550,7 +561,7 @@ print(cutpoint_probit$optimal_cutpoint)
 ```
 
 ```{r}
-pred_class_probit <- factor(ifelse(pred_prob_probit > 0.2081746, "1", "0"), levels = levels(test$income))
+pred_class_probit <- factor(ifelse(pred_prob_probit > 0.2077947, "1", "0"), levels = levels(test$income))
 cm_probit <- confusionMatrix(pred_class_probit, test$income)
 print(cm_probit)
 ```
@@ -571,7 +582,7 @@ plot(roc_probit, xlim = c(1, 0),
      col='blue')
 legend(
   "bottomright",
-  legend = paste("AUC =", round(auc_val_probit, 3)),
+  legend = paste("AUC =", round(auc_val_probit, 5)),
   col = "blue",
   lwd = 2,
   bty = "n"
@@ -595,12 +606,9 @@ adult_cloglog_2 <- glm(income ~ . - education_category, data = train, family = b
 summary(adult_cloglog_2)
 ```
 
+
 ```{r}
-adult_cloglog_3 <- glm(income ~ . - education_category - region, data = train, family = binomial(link = "cloglog"))
-summary(adult_cloglog_3)
-```
-```{r}
-pred_prob_cloglog <- predict(adult_cloglog_3, newdata = test, type = "response")
+pred_prob_cloglog <- predict(adult_cloglog_2, newdata = test, type = "response")
 pred_class_cloglog <- factor(ifelse(pred_prob_cloglog > 0.5, "1", "0"), levels = levels(test$income))
 cm_cloglog <- confusionMatrix(pred_class_cloglog, test$income)
 print(cm_cloglog)
@@ -611,7 +619,7 @@ print(cutpoint_cloglog$optimal_cutpoint)
 ```
 
 ```{r}
-pred_class_cloglog <- factor(ifelse(pred_prob_cloglog > 0.2315001, "1", "0"), levels = levels(test$income))
+pred_class_cloglog <- factor(ifelse(pred_prob_cloglog > 0.2070902, "1", "0"), levels = levels(test$income))
 cm_cloglog <- confusionMatrix(pred_class_cloglog, test$income)
 print(cm_cloglog)
 ```
