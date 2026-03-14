@@ -28,10 +28,11 @@ Sudaryti binarinio atsako modelį, gebantį prognozuoti, ar žmogus uždirba dau
 -   Prognozuoti, ar žmogus uždirba daugiau nei 50 tūkst. JAV dolerių per metus.
 
 ```{r, warning=FALSE}
+adult_original <- read_csv("./data/adult.data", col_names = FALSE)
 adult <- read_csv("./data/adult.data", col_names = FALSE)
 colnames(adult) <- c("age", "workclass", "fnlwgt", "education", "education_num",
                      "marital_status", "occupation", "relationship", "race",
-                     "sex", "capital_gain", "capital_loss", "hours_per_week",
+                     "sex", "capital_gain","capital_loss", "hours_per_week",
                      "native_country", "income")
 
 #? bus laikomi kaip praleisti stebejimai ir bus salinami
@@ -208,14 +209,18 @@ print("marital_category:")
 table(adult$marital_category)
 print("occupation_group:")
 table(adult$occupation_group)
+print("workclass_group:")
+table(adult$workclass_grp)
 ```
 
+EA: ar mum sukurus naujas kategoriniu kintamuju grupes nereiketu droppint musu senu?
+
 ```{r}
-#paziurim kuriose naujose kategorijose yra NA reiksmiu (region, education category, marita_category, occupation_group, workclass_grp)
+#paziurim kuriose naujose kategorijose yra NA reiksmiu (region, education category, marital_category, occupation_group, workclass_grp)
 names(adult)[colSums(is.na(adult)) > 0]
 ```
 
-salinam NA reiksmes, teciau jeigu pasirodys taip, kad sitie kintamieji nera statistiskai reiksmingi musu modeliui, reikes juos grazinti
+salinam NA reiksmes, teciau jeigu pasirodys taip, kad sitie kintamieji nera statistiskai reiksmingi musu modeliui, reikes juos grazinti!!!!!
 
 ```{r}
 adult_with_na <- adult #issisaugom jeigu nereiksmingi
@@ -278,7 +283,7 @@ create_plot(adult, "marital_category", type = "count")
 create_plot(adult, "marital_category", type = "prop")
 ```
 
-su Never-worked ir without-pay turime dalinio atskiriamumo problemą.
+su Never-worked ir without-pay turime dalinio atskiriamumo problemą. EA: bet ruta lev sake kad ismest, nes ten kai NA's tai cia kaip ir nebesvarbu?
 
 ```{r, occupation changed}
 create_plot(adult, "occupation_group",type="prop")
@@ -312,7 +317,7 @@ create_plot(adult, "workclass_grp",type="prop")
 #  theme_ridges() + 
 #  theme(legend.position = "none")
 
-#sake capital_gain nenaudoti
+#sake capital_gain nenaudoti?
 ```
 
 ```{r}
@@ -321,16 +326,18 @@ create_plot(adult, "workclass_grp",type="prop")
 #  theme_ridges() + 
 #  theme(legend.position = "none")
 
-#capital_loss irgi nenaudojam
+#capital_loss irgi nenaudojam?
 ```
 
 `capital_gain` ir `capital_loss` kintamieji labai įtartini, kadangi kintamojo `capital_gain` daug reikšmių kartojasi keletai asmenų. Šį kintamąjį laikysime nepatikimu ir sukursime naują kintamąjį, kuris rodys, ar asmuo yra pardavęs akcijų (apytikslis atitikmuo kintamąjam, ar žmogus turi akcijų).
+
+EA: gerai jeigu darom sita, tai reikia ji deti pire nauju kintamuju apskaiciavimo duomenu sutvarkymo ir paruosimo skiltyje?
 
 ```{r}
 adult <- adult %>%
   mutate(has_sold_stocks = ifelse(capital_gain > 0 | capital_loss > 0, 1, 0))
 
-adult <- subset(adult, select = -c(capital_gain, capital_loss))
+adult <- subset(adult, select = -c(capital_gain, capital_loss)) #EA: cia gal dar reiktu pavadinti kitaip, nes dabar 0 1 sold_stocks maisosi su 0 1 income label'iu
 ```
 
 ```{r}
@@ -344,10 +351,22 @@ ggplot(adult, aes(x = age, y = income, fill = income)) +
   theme(legend.position = "none")
 ```
 
+EA: cia mes dareme nauja kintamaji age_group vietoj age, tai kam mum isvis sitas buvo reikalingas jeigu dabar vistiek pagal age ziurime pasiskirstyma?
+
 ```{r}
 ggplot(adult, aes(x = income, y = age, fill = income)) +
     geom_boxplot(width=0.5) +
     theme_minimal()
+```
+
+```{r}
+#violin plot gal tiesiog patogiau
+ggplot(adult, aes(x = income, y =age, fill = income)) +
+  geom_violin(alpha = 0.4) +
+  geom_boxplot(width = 0.3) +
+  theme_minimal() +
+  scale_y_continuous(limits = c(0, 100), breaks = seq(0, 100, by = 10)
+  )
 ```
 
 Aukštesnes pajamas gaunančių žmonių amžiaus mediana yra didesnė nei žemesnes pajamas gaunančių. Tarpkvartilinis plotis taip pat žemesnes pajamas gaunačių didesnis (reiškia daug yra jaunų mažas gaunančių, daug yra senų mažai gaunančių.)
@@ -363,10 +382,13 @@ ggplot(adult, aes(x = hours_per_week, y = income, fill = income)) +
   geom_density_ridges(alpha = 0.7)
   theme_ridges() + 
   theme(legend.position = "none")
+  
+  #EA: su hours_per_week violin plot'as nekaip atrodo.., tai realiai galima palikt atskirai ir ataskaitoj side by side sudesime
 ```
 
 ```{r}
 adult_clean <- adult %>% select(-age, -education, -marital_status, -native_country, -relationship, -occupation, -workclass)
+#EA: sita reikejo pries prie duomeny sutvarkymo ir paruosimo daryt realiai, tsg kad eiliskumas kodo biski tvarkingesnis butu
 ```
 
 ```{r}
