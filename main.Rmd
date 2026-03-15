@@ -263,7 +263,17 @@ names(adult)[colSums(is.na(adult)) > 0] #niekur!
 # Pradine duomenu analize
 
 ```{r}
-create_plot(adult, "region", type = "count")
+create_plot(adult, "region", type = "count") +
+    scale_x_discrete(labels = c(
+    "Europe" = "Europa",
+    "Asia" = "Azija",
+    "North America" = "Šiaurės Amerika",
+    "South America" = "Pietų Amerika"
+  )) +
+  labs(x = "Regionas", y = "Dažnis") +
+  ylim(c(0,30000))
+
+ggsave(filename = "region_count.png", width = 8, height = 8, dpi=300, bg = "white")
 ```
 
 ```{r}
@@ -279,9 +289,14 @@ create_plot(adult, "region", type = "prop") +
 ggsave(filename = "region_prop.png", width = 8, height = 8, dpi=300, bg = "white")
 
 ```
-
 ```{r}
-create_plot(adult, "age_category", type = "count")
+table(adult$age_category)
+```
+```{r}
+create_plot(adult, "age_category", type = "count") +
+    labs(x = "Amžiaus grupė", y = "Dažnis")
+
+ggsave(filename = "age_count.png", width = 8, height = 8, dpi=300, bg = "white")
 ```
 
 ```{r}
@@ -298,7 +313,16 @@ prop.table(table(adult$age_category, adult$income),1)
 Praktiškai visi 0-24 grupėje yra mažas pajamas gaunantys, tačiau tai logiška -- paliekame. Bet verta pamineti kad mazai ju labai. 
 
 ```{r}
-create_plot(adult, "education_category", type = "count")
+create_plot(adult, "education_category", type = "count") +
+      scale_x_discrete(labels = c(
+    "Secondary" = "Vidurinis",
+    "Tertiary" = "Aukštasis",
+    "Advanced" = "Aukštesnysis"
+  )) +
+  labs(x = "Išsilavinimas", y = "Dažnis") +
+  ylim(c(0, 15000))
+
+ggsave(filename = "edukacija_count.png", width = 8, height = 8, dpi=300, bg = "white")
 
 ```
 
@@ -309,7 +333,7 @@ create_plot(adult, "education_category", type = "prop") +
     "Tertiary" = "Aukštasis",
     "Advanced" = "Aukštesnysis"
   )) +
-  labs(x = "Išsivalinimas", y = "Proporcija")
+  labs(x = "Išsilavinimas", y = "Proporcija")
 
 ggsave(filename = "edukacija_prop.png", width = 8, height = 8, dpi=300, bg = "white")
 
@@ -318,7 +342,16 @@ ggsave(filename = "edukacija_prop.png", width = 8, height = 8, dpi=300, bg = "wh
 Atskiriamumas pagal `None`, taip pat logiškas rezultatas;
 
 ```{r}
-create_plot(adult, "marital_category", type = "count")
+create_plot(adult, "marital_category", type = "count") +
+    scale_x_discrete(labels = c(
+    "Ex-Married" = "Išsiskyrę",
+    "Married" = "Susituokę",
+    "Never Married" = "Nesusituokę"
+  )) +
+  labs(x = "Santuokinė padėtis", y = "Dažnis") +
+  ylim(c(0, 15000))
+
+ggsave(filename = "marriage_count.png", width = 8, height = 8, dpi=300, bg = "white")
 ```
 
 ```{r}
@@ -350,7 +383,16 @@ ggsave(filename = "occupation_prop.png", width = 8, height = 8, dpi=300, bg = "w
 Sujungus duomenis šios problemos nebėra. Tik reiktų paaiškinti, kodėl taip sujungėme.
 
 ```{r, occupation changed count}
-create_plot(adult, "occupation_group",type="count")
+create_plot(adult, "occupation_group",type="count") +
+      scale_x_discrete(labels = c(
+    "Manual Labor" = "Fizinio darbo",
+    "Professional/Admin" = "Specialistų/administacinių",
+    "Service/Tech" = "Paslaugų/techninių"
+  )) +
+  labs(x = "Pareigų tipas (profesijų grupė)", y = "Dažnis") +
+  ylim(c(0, 20000))
+
+ggsave(filename = "occupation_count.png", width = 8, height = 8, dpi=300, bg = "white")
 ```
 
 ```{r, warning=FALSE}
@@ -366,7 +408,15 @@ ggsave(filename = "workclass_prop.png", width = 8, height = 8, dpi=300, bg = "wh
 ```
 
 ```{r}
-create_plot(adult, "workclass_grp",type="prop") +
+create_plot(adult, "workclass_grp",type="count") +
+        scale_x_discrete(labels = c(
+    "Government" = "Valstybinėje įmonėje",
+    "Private" = "Privačioje įmonėje",
+    "Self-employed" = "Savanrankiškai dirbantis"
+  )) +
+  labs(x = "Darbo tipas", y = "Dažnis")
+
+ggsave(filename = "workclass_count.png", width = 8, height = 8, dpi=300, bg = "white")
   
 ```
 
