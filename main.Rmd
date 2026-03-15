@@ -229,6 +229,9 @@ table(adult$workclass_grp)
 ```
 
 Kadangi turime pilno atskiriamumo problema pagal education_category, tai siauriname
+```{r}
+table(adult$education_category)
+```
 
 
 ```{r}
@@ -261,6 +264,7 @@ names(adult)[colSums(is.na(adult)) > 0] #niekur!
 1 sudaro tik 25 % duomenų aibės. Šitą problemą spręsti reiks arba slenkstį koreguojant, arba balansuojant grupes. Sakė galime daryti šių metodų palyginimus.
 
 # Pradine duomenu analize
+
 
 ```{r}
 create_plot(adult, "region", type = "count") +
@@ -481,18 +485,41 @@ ggplot(adult, aes(x = income, y =age, fill = income)) +
 Aukštesnes pajamas gaunančių žmonių amžiaus mediana yra didesnė nei žemesnes pajamas gaunančių. Tarpkvartilinis plotis taip pat žemesnes pajamas gaunačių didesnis (reiškia daug yra jaunų mažas gaunančių, daug yra senų mažai gaunančių.)
 
 ```{r}
+```
+
+
+```{r}
 ggplot(adult, aes(x = income, y = hours_per_week, fill = income)) +
     geom_boxplot() +
-    theme_minimal()
+    theme_minimal() +
+  scale_x_discrete(labels = c(
+    "0" = "<= 50 tūkst. JAV dolerių",
+    "1" = ">= 50 tūkst. JAV dolerių"
+  )) +
+  labs(x = "Metinės pajamos", y = "Savaitinis darbo valandų skaičius") +
+  theme(legend.position = "none")
+
+ggsave(filename = "hours_per_week_boxplot.png", width = 8, height = 8, dpi=300, bg = "white")
 ```
+
 
 ```{r}
 ggplot(adult, aes(x = hours_per_week, y = income, fill = income)) +
   geom_density_ridges(alpha = 0.7) +
   theme_ridges() + 
-  theme(legend.position = "none")
-  
-  #EA: su hours_per_week violin plot'as nekaip atrodo.., tai realiai galima palikt atskirai ir ataskaitoj side by side sudesime
+  scale_y_discrete(labels = c(
+  "0" = "<= 50 tūkst.\nJAV dolerių",
+  "1" = ">= 50 tūkst.\nJAV dolerių"
+)) +
+  theme( legend.position = "none") +
+  labs(x = "Savaitinis darbo valandų skaičius", y = "Metinės pajamos")
+
+ggsave(filename = "hours_per_week_hist.png", width = 8, height = 8, dpi=300, bg = "white")
+```
+
+
+```{r}
+tapply(adult$hours_per_week, adult$income, summary)
 ```
 
 ```{r}
