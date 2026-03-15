@@ -419,13 +419,25 @@ Reiks balansuoti
 
 ## logit modelis
 ```{r}
+
 vif(glm(income ~ ., data = adult_clean, family = binomial(link="logit")))
 ```
 
 ```{r}
+
 adult_logit_1 <- glm(income ~ ., data = train, family = binomial(link = "logit"))
 summary(adult_logit_1)
 BIC(adult_logit_1)
+```
+```{r}
+anova(adult_logit_1, glm(income ~ . - region, data = train, family = binomial(link = "logit"))
+, test = "Chisq")
+
+anova(adult_logit_1, glm(income ~ . - workclass_grp, data = train, family = binomial(link = "logit"))
+, test = "Chisq")
+
+anova(adult_logit_1, glm(income ~ . - race, data = train, family = binomial(link = "logit"))
+, test = "Chisq")
 ```
 
 ```{r, fig.width=9, fig.height=6}
@@ -492,7 +504,6 @@ print(cutpoint_logit$optimal_cutpoint)
 pred_class_2 <- factor(ifelse(pred_prob > cutpoint_logit$optimal_cutpoint, "1", "0"), levels = levels(test$income))
 cm_2 <- confusionMatrix(pred_class_2, test$income)
 print(cm_2)
-
 ```
 
 ```{r}
@@ -524,12 +535,25 @@ vif(glm(income ~ ., data = adult_clean, family = binomial(link="probit")))
 adult_probit <- glm(income ~ ., data = train, family = binomial(link = "probit"))
 summary(adult_probit)
 ```
+```{r}
+anova(adult_probit, glm(income ~ . - region, data = train, family = binomial(link = "probit"))
+, test = "Chisq")
+
+anova(adult_probit, glm(income ~ . - workclass_grp, data = train, family = binomial(link = "probit"))
+, test = "Chisq")
+
+anova(adult_probit, glm(income ~ . - race, data = train, family = binomial(link = "probit"))
+, test = "Chisq")
+```
+
+
 ```{r, kuko matas}
 cooksd_probit <- cooks.distance(adult_probit)
 plot(cooksd_probit, pch="*", cex=2)
 outliers_probit <- cooksd_probit[cooksd_probit>1]
 outliers_probit
 ```
+
 
 ```{r, pirsono liekanos}
 pearson_residuals_probit <- glm.diag(adult_probit)$rp
@@ -604,6 +628,14 @@ vif(glm(income ~ ., data = adult_clean, family = binomial(link="cloglog")))
 adult_cloglog <- glm(income ~ ., data = train, family = binomial(link = "cloglog"))
 summary(adult_cloglog)
 ```
+```{r}
+
+anova(adult_cloglog, glm(income ~ . - region, data = train, family = binomial(link = "cloglog")),test = "Chisq")
+anova(adult_cloglog, glm(income ~ . - workclass_grp, data = train, family = binomial(link = "cloglog")),test = "Chisq")
+anova(adult_cloglog, glm(income ~ . -race, data = train, family = binomial(link = "cloglog")),test = "Chisq")
+```
+
+
 ```{r, kuko matas}
 cooksd_cloglog <- cooks.distance(adult_cloglog)
 plot(cooksd_cloglog, pch="*", cex=2)
