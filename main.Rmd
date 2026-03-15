@@ -545,6 +545,10 @@ anova(adult_probit, glm(income ~ . - workclass_grp, data = train, family = binom
 anova(adult_probit, glm(income ~ . - race, data = train, family = binomial(link = "probit"))
 , test = "Chisq")
 ```
+```{r}
+adult_probit<- glm(income ~ . - workclass_grp, data = train, family = binomial(link = "probit"))
+summary(adult_probit)
+```
 
 
 ```{r, kuko matas}
