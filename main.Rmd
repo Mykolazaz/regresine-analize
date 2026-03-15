@@ -29,7 +29,6 @@ Sudaryti binarinio atsako modelį, gebantį prognozuoti, ar žmogus uždirba dau
 -   Nustatyti, kurie veiksniai geriausiai prognozuoja, ar žmogus uždirba daugiau nei 50 tūkst. JAV dolerių per metus;
 -   Prognozuoti, ar žmogus uždirba daugiau nei 50 tūkst. JAV dolerių per metus.
 
-
 # Data clean
 
 ```{r, warning=FALSE}
@@ -75,11 +74,15 @@ create_plot <- function(data, var_name, type = "prop") {
     labs(x = var_name, y = "", fill = "income") +
     theme_minimal() +
     theme(
-      axis.text.x = element_text(angle = 45, hjust = 1),
+      axis.text.x = element_text(size = 20),
+      axis.text.y = element_text(size = 20),
+      axis.title.x = element_text(size = 20),
+      axis.title.y = element_text(size = 20),
+      legend.text = element_text(size = 18),
+      legend.title = element_text(size = 18),
       legend.position = "none"
     ) }
 ```
-
 
 ```{r}
 summary(adult$age) 
@@ -209,7 +212,7 @@ adult <- adult %>%
         !is.na(occupation_group))
 ```
 
-``` {r}
+```{r}
 colSums(is.na(adult))
 ```
 
@@ -229,10 +232,10 @@ table(adult$workclass_grp)
 ```
 
 Kadangi turime pilno atskiriamumo problema pagal education_category, tai siauriname
+
 ```{r}
 table(adult$education_category)
 ```
-
 
 ```{r}
 #paziurim kuriose naujose kategorijose yra NA reiksmiu (region, education category, marital_category, occupation_group, workclass_grp)
@@ -255,24 +258,23 @@ colSums(is.na(adult))
 ```{r}
 (nrow(adult_with_na)-nrow(adult))/nrow(adult_with_na) #7 procentai
 ```
+
 ```{r}
 #vel pasiziurim kur NA's yra 
 names(adult)[colSums(is.na(adult)) > 0] #niekur!
 ```
 
-
 1 sudaro tik 25 % duomenų aibės. Šitą problemą spręsti reiks arba slenkstį koreguojant, arba balansuojant grupes. Sakė galime daryti šių metodų palyginimus.
 
 # Pradine duomenu analize
-
 
 ```{r}
 create_plot(adult, "region", type = "count") +
     scale_x_discrete(labels = c(
     "Europe" = "Europa",
     "Asia" = "Azija",
-    "North America" = "Šiaurės Amerika",
-    "South America" = "Pietų Amerika"
+    "North America" = "Šiaurės \n Amerika",
+    "South America" = "Pietų \n Amerika"
   )) +
   labs(x = "Regionas", y = "Dažnis") +
   ylim(c(0,30000))
@@ -285,17 +287,19 @@ create_plot(adult, "region", type = "prop") +
   scale_x_discrete(labels = c(
     "Europe" = "Europa",
     "Asia" = "Azija",
-    "North America" = "Šiaurės Amerika",
-    "South America" = "Pietų Amerika"
+    "North America" = "Šiaurės\n Amerika",
+    "South America" = "Pietų \n Amerika"
   )) +
   labs(x = "Regionas", y = "Proporcija")
 
 ggsave(filename = "region_prop.png", width = 8, height = 8, dpi=300, bg = "white")
 
 ```
+
 ```{r}
 table(adult$age_category)
 ```
+
 ```{r}
 create_plot(adult, "age_category", type = "count") +
     labs(x = "Amžiaus grupė", y = "Dažnis")
@@ -314,7 +318,8 @@ ggsave(filename = "age_prop.png", width = 8, height = 8, dpi=300, bg = "white")
 ```{r}
 prop.table(table(adult$age_category, adult$income),1)
 ```
-Praktiškai visi 0-24 grupėje yra mažas pajamas gaunantys, tačiau tai logiška -- paliekame. Bet verta pamineti kad mazai ju labai. 
+
+Praktiškai visi 0-24 grupėje yra mažas pajamas gaunantys, tačiau tai logiška -- paliekame. Bet verta pamineti kad mazai ju labai.
 
 ```{r}
 create_plot(adult, "education_category", type = "count") +
@@ -374,9 +379,9 @@ ggsave(filename = "marriage_prop.png", width = 8, height = 8, dpi=300, bg = "whi
 ```{r, occupation changed}
 create_plot(adult, "occupation_group",type="prop") +
     scale_x_discrete(labels = c(
-    "Manual Labor" = "Fizinio darbo",
-    "Professional/Admin" = "Specialistų/administacinių",
-    "Service/Tech" = "Paslaugų/techninių"
+    "Manual Labor" = "Fizinio \n darbo",
+    "Professional/Admin" = "Specialistų/ \n administacinių",
+    "Service/Tech" = "Paslaugų/ \n techninių"
   )) +
   labs(x = "Pareigų tipas (profesijų grupė)", y = "Proporcija")
 
@@ -389,9 +394,9 @@ Sujungus duomenis šios problemos nebėra. Tik reiktų paaiškinti, kodėl taip 
 ```{r, occupation changed count}
 create_plot(adult, "occupation_group",type="count") +
       scale_x_discrete(labels = c(
-    "Manual Labor" = "Fizinio darbo",
-    "Professional/Admin" = "Specialistų/administacinių",
-    "Service/Tech" = "Paslaugų/techninių"
+    "Manual Labor" = "Fizinio \n darbo",
+    "Professional/Admin" = "Specialistų/ \n administacinių",
+    "Service/Tech" = "Paslaugų/ \n techninių"
   )) +
   labs(x = "Pareigų tipas (profesijų grupė)", y = "Dažnis") +
   ylim(c(0, 20000))
@@ -402,9 +407,9 @@ ggsave(filename = "occupation_count.png", width = 8, height = 8, dpi=300, bg = "
 ```{r, warning=FALSE}
 create_plot(adult, "workclass_grp",type="prop") +
       scale_x_discrete(labels = c(
-    "Government" = "Valstybinėje įmonėje",
-    "Private" = "Privačioje įmonėje",
-    "Self-employed" = "Savanrankiškai dirbantis"
+    "Government" = "Valstybinėje \n įmonėje",
+    "Private" = "Privačioje \n įmonėje",
+    "Self-employed" = "Savanrankiškai \n dirbantis"
   )) +
   labs(x = "Darbo tipas", y = "Proporcija")
 
@@ -414,9 +419,9 @@ ggsave(filename = "workclass_prop.png", width = 8, height = 8, dpi=300, bg = "wh
 ```{r}
 create_plot(adult, "workclass_grp",type="count") +
         scale_x_discrete(labels = c(
-    "Government" = "Valstybinėje įmonėje",
-    "Private" = "Privačioje įmonėje",
-    "Self-employed" = "Savanrankiškai dirbantis"
+    "Government" = "Valstybinėje \n įmonėje",
+    "Private" = "Privačioje \n įmonėje",
+    "Self-employed" = "Savanrankiškai \n dirbantis"
   )) +
   labs(x = "Darbo tipas", y = "Dažnis")
 
@@ -487,46 +492,67 @@ Aukštesnes pajamas gaunančių žmonių amžiaus mediana yra didesnė nei žeme
 ```{r}
 ```
 
-
 ```{r}
 ggplot(adult, aes(x = income, y = hours_per_week, fill = income)) +
     geom_boxplot() +
     theme_minimal() +
   scale_x_discrete(labels = c(
-    "0" = "<= 50 tūkst. JAV dolerių",
-    "1" = ">= 50 tūkst. JAV dolerių"
+    "0" = "<= 50 tūkst. \n JAV dolerių",
+    "1" = ">= 50 tūkst. \n JAV dolerių"
   )) +
   labs(x = "Metinės pajamos", y = "Savaitinis darbo valandų skaičius") +
-  theme(legend.position = "none")
-
+  scale_fill_manual(values = c(
+  "0" = "#E4381B",
+  "1" = "#4CAF50"
+)) +
+  theme(legend.position = "none") +
+  theme(
+      axis.text.x = element_text(size = 20),
+      axis.text.y = element_text(size = 20),
+      axis.title.x = element_text(size = 20),
+      axis.title.y = element_text(size = 18),
+      legend.text = element_text(size = 18),
+      legend.title = element_text(size = 18),
+      legend.position = "none"
+    )
 ggsave(filename = "hours_per_week_boxplot.png", width = 8, height = 8, dpi=300, bg = "white")
 ```
-
 
 ```{r}
 ggplot(adult, aes(x = hours_per_week, y = income, fill = income)) +
   geom_density_ridges(alpha = 0.7) +
   theme_ridges() + 
   scale_y_discrete(labels = c(
-  "0" = "<= 50 tūkst.\nJAV dolerių",
-  "1" = ">= 50 tūkst.\nJAV dolerių"
+  "0" = "<= 50 tūkst.\n JAV dolerių",
+  "1" = ">= 50 tūkst.\n JAV dolerių"
+)) +
+  scale_fill_manual(values = c(
+  "0" = "#E4381B",
+  "1" = "#4CAF50"
 )) +
   theme( legend.position = "none") +
-  labs(x = "Savaitinis darbo valandų skaičius", y = "Metinės pajamos")
+  labs(x = "Savaitinis darbo valandų skaičius", y = "Metinės pajamos") +
+  theme(
+      axis.text.x = element_text(size = 20),
+      axis.text.y = element_text(size = 20),
+      axis.title.x = element_text(size = 20),
+      axis.title.y = element_text(size = 18),
+      legend.text = element_text(size = 18),
+      legend.title = element_text(size = 18),
+      legend.position = "none")
 
 ggsave(filename = "hours_per_week_hist.png", width = 8, height = 8, dpi=300, bg = "white")
 ```
 
-
 ```{r}
 tapply(adult$hours_per_week, adult$income, summary)
+unique(adult$hours_per_week)
 ```
 
 ```{r}
 adult_clean <- adult %>% select(-age, -education, -marital_status, -native_country, -relationship, -occupation, -workclass)
 #EA: sita reikejo pries prie duomeny sutvarkymo ir paruosimo daryt realiai, tsg kad eiliskumas kodo biski tvarkingesnis butu
 ```
-
 
 ```{r, train/test split}
 set.seed(80085)
@@ -539,15 +565,17 @@ test  <- testing(split)
 ```{r}
 table(adult_clean$income)
 ```
+
 ```{r}
 table(adult_clean$income)[[2]]/ (table(adult_clean$income)[[2]] + table(adult_clean$income)[[1]]) # NA's
 ```
-Reiks balansuoti
 
+Reiks balansuoti
 
 # logit probit cloglog
 
 ## logit modelis
+
 ```{r}
 
 vif(glm(income ~ ., data = adult_clean, family = binomial(link="logit")))
@@ -559,6 +587,7 @@ adult_logit_1 <- glm(income ~ ., data = train, family = binomial(link = "logit")
 summary(adult_logit_1)
 BIC(adult_logit_1)
 ```
+
 ```{r}
 anova(adult_logit_1, glm(income ~ . - region, data = train, family = binomial(link = "logit"))
 , test = "Chisq")
@@ -579,7 +608,9 @@ plot(pearson_residuals, pch="*", cex=2,
 
 dev.off()
 ```
+
 Pastaba surusiavo pagal atsaka paketas kuris ima sluoksnine imti.
+
 ```{r}
 length(pearson_residuals[pearson_residuals < -3 | pearson_residuals > 3])
 ```
@@ -614,6 +645,7 @@ Pagal Kuko matą išskirčių nėra.
 ```{r}
 # confint(adult_logit_3)
 ```
+
 Išbandžius ir multiplikatyvius modelius, reikšmingų sąveikų tarp kovariančių neradome.
 
 ```{r}
@@ -623,7 +655,6 @@ pred_class <- factor(ifelse(pred_prob > 0.5, "1", "0"), levels = levels(test$inc
 cm <- confusionMatrix(pred_class, test$income)
 print(cm)
 ```
-
 
 ```{r}
 cutpoint_logit <- cutpointr(test, pred_prob, income, method = maximize_metric, metric = youden, na.rm = TRUE)
@@ -656,7 +687,9 @@ legend(
   bty = "n"
 )
 ```
+
 ## probit modelis
+
 ```{r}
 vif(glm(income ~ ., data = adult_clean, family = binomial(link="probit")))
 ```
@@ -665,6 +698,7 @@ vif(glm(income ~ ., data = adult_clean, family = binomial(link="probit")))
 adult_probit <- glm(income ~ ., data = train, family = binomial(link = "probit"))
 summary(adult_probit)
 ```
+
 ```{r}
 anova(adult_probit, glm(income ~ . - region, data = train, family = binomial(link = "probit"))
 , test = "Chisq")
@@ -675,11 +709,11 @@ anova(adult_probit, glm(income ~ . - workclass_grp, data = train, family = binom
 anova(adult_probit, glm(income ~ . - race, data = train, family = binomial(link = "probit"))
 , test = "Chisq")
 ```
+
 ```{r}
 adult_probit<- glm(income ~ . - workclass_grp, data = train, family = binomial(link = "probit"))
 summary(adult_probit)
 ```
-
 
 ```{r, kuko matas}
 cooksd_probit <- cooks.distance(adult_probit)
@@ -688,19 +722,21 @@ outliers_probit <- cooksd_probit[cooksd_probit>1]
 outliers_probit
 ```
 
-
 ```{r, pirsono liekanos}
 pearson_residuals_probit <- glm.diag(adult_probit)$rp
 plot(pearson_residuals_probit, pch="*", cex=2)
 ```
+
 ```{r, pirsono liekanos}
 length(pearson_residuals_probit[pearson_residuals_probit < -3 | pearson_residuals_probit > 3])
 ```
+
 ```{r}
 # adult_probit_2 <- glm(income ~ . - education_category, data = train, family = binomial(link = "probit"))
 # summary(adult_probit_2)
 
 ```
+
 ```{r}
 # adult_probit_3 <- glm(income ~ . -education_category -region, data = train, family = binomial(link = "probit"))
 # summary(adult_probit_3)
@@ -710,8 +746,6 @@ length(pearson_residuals_probit[pearson_residuals_probit < -3 | pearson_residual
 # adult_probit_4 <- glm(income ~ . -education_category -region -workclass_grp, data = train, family = binomial(link = "probit"))
 # summary(adult_probit_4)
 ```
-
-
 
 ```{r}
 pred_prob_probit <- predict(adult_probit, newdata = test, type = "response")
@@ -730,7 +764,6 @@ pred_class_probit <- factor(ifelse(pred_prob_probit > cutpoint_probit$optimal_cu
 cm_probit <- confusionMatrix(pred_class_probit, test$income)
 print(cm_probit)
 ```
-
 
 ```{r}
 roc_probit <- pROC::roc(response = test$income,
@@ -755,13 +788,16 @@ legend(
 ```
 
 ## cloglog modelis
+
 ```{r}
 vif(glm(income ~ ., data = adult_clean, family = binomial(link="cloglog")))
 ```
+
 ```{r}
 adult_cloglog <- glm(income ~ ., data = train, family = binomial(link = "cloglog"))
 summary(adult_cloglog)
 ```
+
 ```{r}
 
 anova(adult_cloglog, glm(income ~ . - region, data = train, family = binomial(link = "cloglog")),test = "Chisq")
@@ -769,11 +805,11 @@ anova(adult_cloglog, glm(income ~ . - workclass_grp, data = train, family = bino
 anova(adult_cloglog, glm(income ~ . -race, data = train, family = binomial(link = "cloglog")),test = "Chisq")
 ```
 
-
 ```{r, kuko matas}
 cooksd_cloglog <- cooks.distance(adult_cloglog)
 plot(cooksd_cloglog, pch="*", cex=2)
 ```
+
 ```{r}
 outliers_cloglog <- cooksd_cloglog[cooksd_cloglog>1]
 outliers_cloglog
@@ -783,6 +819,7 @@ outliers_cloglog
 pearson_residuals_cloglog <- glm.diag(adult_cloglog)$rp
 plot(pearson_residuals_cloglog, pch="*", cex=2)
 ```
+
 ```{r}
 length(pearson_residuals_cloglog[pearson_residuals_cloglog < -3 | pearson_residuals_cloglog > 3])
 ```
@@ -791,7 +828,6 @@ length(pearson_residuals_cloglog[pearson_residuals_cloglog < -3 | pearson_residu
 # adult_cloglog_2 <- glm(income ~ . - education_category, data = train, family = binomial(link = "cloglog"))
 # summary(adult_cloglog_2)
 ```
-
 
 ```{r}
 pred_prob_cloglog <- predict(adult_cloglog, newdata = test, type = "response")
