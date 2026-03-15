@@ -82,10 +82,6 @@ create_plot <- function(data, var_name, type = "prop") {
 
 
 ```{r}
-colSums(is.na(adult))
-```
-
-```{r}
 summary(adult$age) 
 ```
 
@@ -206,6 +202,17 @@ adult$workclass_grp <- case_when(
 )
 ```
 
+```{r}
+adult <- adult %>%
+  filter(!(education_category %in% c("Primary","None")),
+        !is.na(workclass_grp),
+        !is.na(occupation_group))
+```
+
+``` {r}
+colSums(is.na(adult))
+```
+
 ```{r, nauju kategoriniu  dazniai}
 print("region:")
 table(adult$region)
@@ -219,15 +226,10 @@ print("occupation_group:")
 table(adult$occupation_group)
 print("workclass_group:")
 table(adult$workclass_grp)
-adult[is.na(adult$region),]
 ```
 
 Kadangi turime pilno atskiriamumo problema pagal education_category, tai siauriname
 
-```{r}
-adult <- adult %>%
-  filter(!(education_category %in% c("Primary","None")))
-```
 
 ```{r}
 #paziurim kuriose naujose kategorijose yra NA reiksmiu (region, education category, marital_category, occupation_group, workclass_grp)
@@ -265,7 +267,16 @@ create_plot(adult, "region", type = "count")
 ```
 
 ```{r}
-create_plot(adult, "region", type = "prop")
+create_plot(adult, "region", type = "prop") +
+  scale_x_discrete(labels = c(
+    "Europe" = "Europa",
+    "Asia" = "Azija",
+    "North America" = "Šiaurės Amerika",
+    "South America" = "Pietų Amerika"
+  )) +
+  labs(x = "Regionas", y = "Proporcija")
+
+ggsave(filename = "region_prop.png", width = 8, height = 8, dpi=300, bg = "white")
 
 ```
 
@@ -274,8 +285,13 @@ create_plot(adult, "age_category", type = "count")
 ```
 
 ```{r}
-create_plot(adult, "age_category", type = "prop")
+create_plot(adult, "age_category", type = "prop") +
+  labs(x = "Amžiaus grupė", y = "Proporcija")
+
+ggsave(filename = "age_prop.png", width = 8, height = 8, dpi=300, bg = "white")
+
 ```
+
 ```{r}
 prop.table(table(adult$age_category, adult$income),1)
 ```
@@ -287,7 +303,16 @@ create_plot(adult, "education_category", type = "count")
 ```
 
 ```{r}
-create_plot(adult, "education_category", type = "prop")
+create_plot(adult, "education_category", type = "prop") +
+    scale_x_discrete(labels = c(
+    "Secondary" = "Vidurinis",
+    "Tertiary" = "Aukštasis",
+    "Advanced" = "Aukštesnysis"
+  )) +
+  labs(x = "Išsivalinimas", y = "Proporcija")
+
+ggsave(filename = "edukacija_prop.png", width = 8, height = 8, dpi=300, bg = "white")
+
 ```
 
 Atskiriamumas pagal `None`, taip pat logiškas rezultatas;
@@ -297,11 +322,29 @@ create_plot(adult, "marital_category", type = "count")
 ```
 
 ```{r}
-create_plot(adult, "marital_category", type = "prop")
+create_plot(adult, "marital_category", type = "prop") +
+  scale_x_discrete(labels = c(
+    "Ex-Married" = "Išsiskyrę",
+    "Married" = "Susituokę",
+    "Never Married" = "Nesusituokę"
+  )) +
+  labs(x = "Santuokinė padėtis", y = "Proporcija")
+
+ggsave(filename = "marriage_prop.png", width = 8, height = 8, dpi=300, bg = "white")
+
 ```
 
 ```{r, occupation changed}
-create_plot(adult, "occupation_group",type="prop")
+create_plot(adult, "occupation_group",type="prop") +
+    scale_x_discrete(labels = c(
+    "Manual Labor" = "Fizinio darbo",
+    "Professional/Admin" = "Specialistų/administacinių",
+    "Service/Tech" = "Paslaugų/techninių"
+  )) +
+  labs(x = "Pareigų tipas (profesijų grupė)", y = "Proporcija")
+
+ggsave(filename = "occupation_prop.png", width = 8, height = 8, dpi=300, bg = "white")
+
 ```
 
 Sujungus duomenis šios problemos nebėra. Tik reiktų paaiškinti, kodėl taip sujungėme.
@@ -309,12 +352,22 @@ Sujungus duomenis šios problemos nebėra. Tik reiktų paaiškinti, kodėl taip 
 ```{r, occupation changed count}
 create_plot(adult, "occupation_group",type="count")
 ```
+
 ```{r, warning=FALSE}
-create_plot(adult, "workclass_grp",type="count")
+create_plot(adult, "workclass_grp",type="prop") +
+      scale_x_discrete(labels = c(
+    "Government" = "Valstybinėje įmonėje",
+    "Private" = "Privačioje įmonėje",
+    "Self-employed" = "Savanrankiškai dirbantis"
+  )) +
+  labs(x = "Darbo tipas", y = "Proporcija")
+
+ggsave(filename = "workclass_prop.png", width = 8, height = 8, dpi=300, bg = "white")
 ```
 
 ```{r}
-create_plot(adult, "workclass_grp",type="prop")
+create_plot(adult, "workclass_grp",type="prop") +
+  
 ```
 
 ```{r}
