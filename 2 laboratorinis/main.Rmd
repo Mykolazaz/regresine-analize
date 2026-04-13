@@ -3,3 +3,66 @@ title: "main"
 output: html_document
 ---
 
+```{r}
+library(readr)
+library(quantreg)
+library(ggplot2)
+```
+
+
+```{r}
+ggplot(data=data, mapping=aes(x=age))+
+        geom_boxplot()
+```
+
+
+```{r}
+ggplot(data=data, mapping=aes(x=sex))+
+        geom_bar()
+```
+
+```{r}
+ggplot(data = data, aes(x = bmi)) +
+  geom_histogram()
+```
+
+
+```{r}
+ggplot(data=data, mapping=aes(x=sex))+
+        geom_bar()
+```
+
+```{r}
+ggplot(data=data, mapping=aes(x=children))+
+        geom_bar()
+```
+
+```{r}
+ggplot(data=data, mapping=aes(x=smoker))+
+        geom_bar()
+```
+
+```{r}
+ggplot(data=data, mapping=aes(x=region))+
+        geom_bar()
+```
+
+```{r}
+data <- read_csv("insurance.csv")
+```
+
+```{r}
+data
+```
+
+
+```{r}
+model <- rq(charges ~ ., data=data, tau = 0.75)
+```
+
+```{r}
+summary(model)
+```
+
+
+
