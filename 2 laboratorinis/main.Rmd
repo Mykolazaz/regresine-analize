@@ -45,17 +45,17 @@ ggplot(data=data, mapping=aes(x=sex))+
 ```
 
 ```{r}
-ggplot(data=data, mapping=aes(x=children))+
+ggplot(data = data, aes(x = factor(children))) +
+  geom_bar()
+```
+
+```{r}
+ggplot(data=data, mapping=aes(x=smoker)) +
         geom_bar()
 ```
 
 ```{r}
-ggplot(data=data, mapping=aes(x=smoker))+
-        geom_bar()
-```
-
-```{r}
-ggplot(data=data, mapping=aes(x=region))+
+ggplot(data=data, mapping=aes(x=region)) +
         geom_bar()
 ```
 
