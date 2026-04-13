@@ -1,0 +1,2577 @@
+---
+output:
+  pdf_document:
+    latex_engine: xelatex
+    extra_dependencies: ["babel"]
+header-includes:
+  - \usepackage[lithuanian]{babel}
+  - \usepackage{placeins}
+  - \usepackage{indentfirst}
+  - \usepackage{float}
+  - \setlength{\parindent}{2em}
+bibliography: references.bib
+csl: iso690-numeric-lt.csl
+link-citations: true
+nocite: '@*'
+---
+
+```{=latex}
+\section{Tikslas ir uždaviniai}
+
+Šio laboratorinio darbo tikslas yra sudaryti daugialypės mažiausių kvadratų tiesinės regresijos modelį automobilių kainų reikšmėms prognozuoti.
+
+\noindent \textbf{Uždaviniai:}
+\begin{enumerate}
+    \item Atlikti pradinę kintamųjų analizę;
+    \item Ištirti, kurie kintamieji turi reikšmingiausią įtaką naudotų automobilių kainai;
+    \item Atrinkti optimalų daugialypės tiesinės regresijos modelį.
+\end{enumerate}
+```
+
+\newpage
+
+```{=latex}
+\section{Duomenų aprašymas}
+
+Laboratoriniame darbe buvo naudojamas "Used Cars Dataset" duomenų rinkinys, kurį galima rasti \href{https://www.kaggle.com/datasets/rakkesharv/used-cars-detailed-dataset}{Kaggle}. Duomenų rinkinyje pateikiama informacija, nuskaityta iš automobilių perpardavimo puslapio, apie automobilių charakteristikas ir kainas. Rinkinyje yra 973 stebiniai, atitinkantys naudotus automobilius. Sutvarkius duomenų rinkinį liko 963 stebiniai. Kaina, pradžioje pateikta Indijos rupijomis, buvo konvertuota į eurus pagal 2022 m. kursą bei atsižvelgiant į infliaciją tarp 2022 ir 2025 metų.
+\\
+\\
+\noindent \textbf{Rinkinio kintamieji:}
+\begin{itemize}
+    \item \textbf{Car\_Name} – automobilio pavadinimas.
+    \item \textbf{Make} – gamintojas.
+    \item \textbf{Model} – modelio pavadinimas.
+    \item \textbf{Make\_Year} – gaminimo metai.
+    \item \textbf{Color} – spalva.
+    \item \textbf{Body\_Type} – kėbulo tipas.
+    \item \textbf{Mileage\_Run} – rida.
+    \item \textbf{No\_of\_Owners} - buvusių savininkų skaičius.
+    \item \textbf{Seating\_Capacity} - vietų automobilyje skaičius.
+    \item \textbf{Fuel\_Type} - kuro tipas.
+    \item \textbf{Fuel\_Tank\_Capacity} - kuro bako talpa (l).
+    \item \textbf{Engine\_Type} - variklio pavadinimas, modelis ir tipas.
+    \item \textbf{CC\_Displacement} - variklio darbinis tūris ($cm^3$).
+    \item \textbf{Transmission} - pavarų dėžės tipas.
+    \item \textbf{Transmission\_Type} - pavarų dėžės greičių skaičius.
+    \item \textbf{Power(BHP)} - variklio galingumas (arklio galios).
+    \item \textbf{Torque(Nm)} - variklio sukimo momentas (Nm).
+    \item \textbf{Mileage(kmpl)} - kuro sąnaudos (km/l).
+    \item \textbf{Emission} - emisijų normos.
+    \item \textbf{Price} - kaina (atsako kintamasis).
+\end{itemize}
+```
+
+\newpage
+
+```{r include=FALSE}
+# RENDER'INIMO PARAMETRAI
+
+knitr::opts_chunk$set(
+  dev = "pdf",
+  dev.args = list(encoding = "CP1257.enc"),
+  warning = FALSE
+)
+```
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+# BIBLIOTEKOS
+
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(patchwork)
+library(corrplot)
+library(GGally)
+library(MASS)
+library(knitr)
+library(qqplotr)
+library(car)
+library(ppcor)
+library(lmtest)
+library(scales)
+
+set.seed(123)
+```
+
+```{python eval=FALSE, include=FALSE}
+import pandas as pd
+import matplotlib.pyplot as plt
+import numpy as np
+import seaborn as sns
+from tabulate import tabulate
+from scipy.stats import shapiro, boxcox, norm
+import scipy.stats as stats
+import statsmodels.formula.api as smf
+from statsmodels.stats.outliers_influence import variance_inflation_factor
+from sklearn.preprocessing import StandardScaler
+import matplotlib.gridspec as gridspec
+import matplotlib.ticker as ticker
+import statsmodels.api as sm
+import pingouin as pg
+```
+
+```{r include=FALSE}
+# DUOMENŲ PARUOŠIMAS
+
+original_data <- read.csv("FINAL_SPINNY_900.csv")
+
+original_data <- original_data %>%
+  rename(
+    car_name = Car_Name,
+    manufacturer = Make,
+    model = Model,
+    year = Make_Year,
+    color = Color,
+    body_type = Body_Type,
+    mileage = Mileage_Run,
+    num_owners = No_of_Owners,
+    seating_capacity = Seating_Capacity,
+    fuel = Fuel_Type,
+    tank_capacity = Fuel_Tank_Capacity.L.,
+    engine_type = Engine_Type,
+    cc_displacement = CC_Displacement,
+    transmission_speed = Transmission,
+    transmission_type = Transmission_Type,
+    bhp = Power.BHP.,
+    torque = Torque.Nm.,
+    fuel_economy = Mileage.kmpl.,
+    emission = Emission,
+    price = Price
+  )
+```
+
+```{r include=FALSE}
+original_data$price <- as.numeric(gsub(",", "", original_data$price))
+original_data$mileage <- as.numeric(gsub(",", "", original_data$mileage))
+
+original_data <- original_data %>% 
+  mutate(across(c("manufacturer", "year","color", "body_type", "num_owners", "seating_capacity", "fuel", "transmission_speed", "transmission_type", "emission"), as.factor))
+```
+
+```{r include=FALSE}
+data <- original_data
+
+rm(original_data)
+
+data$fuel_economy[data$fuel_economy == '105 bhp @ 4400 RPM'] <- NA
+data$fuel_economy[data$fuel_economy == 'BS IV'] <- NA
+
+data <- na.omit(data)
+
+data$fuel_economy <- as.numeric(data$fuel_economy)
+
+data$price <- data$price / 80.485 * 1.0932
+```
+
+```{python eval=FALSE, include=FALSE}
+original_data = pd.read_csv("FINAL_SPINNY_900.csv")
+
+original_data = original_data.rename(columns={
+    "Car_Name": "car_name",
+    "Make": "manufacturer",
+    "Model": "model",
+    "Make_Year": "year",
+    "Color": "color",
+    "Body_Type": "body_type",
+    "Mileage_Run": "mileage",
+    "No_of_Owners": "num_owners",
+    "Seating_Capacity": "seating_capacity",
+    "Fuel_Type": "fuel",
+    "Fuel_Tank_Capacity(L)": "tank_capacity",
+    "Engine_Type": "engine_type",
+    "CC_Displacement": "cc_displacement",
+    "Transmission": "transmission_speed",
+    "Transmission_Type": "transmission_type",
+    "Power(BHP)": "bhp",
+    "Torque(Nm)": "torque",
+    "Mileage(kmpl)": "fuel_economy",
+    "Emission": "emission",
+    "Price": "price"
+})
+
+original_data["price"] = (
+    original_data["price"].astype(str).str.replace(",", "", regex=False).astype(float)
+)
+original_data["mileage"] = (
+    original_data["mileage"].astype(str).str.replace(",", "", regex=False).astype(float)
+)
+
+factor_cols = [
+    "manufacturer", "year", "color", "body_type", "num_owners",
+    "seating_capacity", "fuel", "transmission_speed",
+    "transmission_type", "emission"
+]
+for col in factor_cols:
+    original_data[col] = original_data[col].astype("category")
+    
+data = original_data.copy()
+del original_data
+
+data.loc[data["fuel_economy"].isin(["105 bhp @ 4400 RPM", "BS IV"]), "fuel_economy"] = np.nan
+
+data = data.dropna()
+
+data["fuel_economy"] = pd.to_numeric(data["fuel_economy"], errors="coerce")
+
+data["price"] = data["price"] / 80.485 * 1.0932
+
+ggplot2_colors = [
+    "#F8766D", "#A3A500", "#00BF7D", "#00B0F6", "#E76BF3"
+]
+```
+
+\newpage
+
+# Kintamųjų analizė
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+numeric_var_outliers <- function(data, var) {
+  data %>% 
+    summarise(
+      Išskirtys = length(boxplot(.data[[var]], plot=FALSE)$out),
+      Min = format(round(min(.data[[var]], na.rm = TRUE), 2), decimal.mark = ","),
+      Q1 = format(round(quantile(.data[[var]], 0.25, na.rm = TRUE), 2), decimal.mark = ","),
+      Mediana = format(round(median(.data[[var]], na.rm = TRUE), 2), decimal.mark = ","),
+      Q3 = format(round(quantile(.data[[var]], 0.75, na.rm = TRUE), 2), decimal.mark = ","),
+      Max = format(round(max(.data[[var]], na.rm = TRUE), 2), decimal.mark = ",")
+    )
+}
+```
+
+
+## Kaina
+
+```{r fig.height=3.6, fig.width=8, echo=FALSE, fig.cap="Kainos histograma"}
+mean_price <- mean(data$price, na.rm = TRUE)
+sd_price <- sd(data$price, na.rm = TRUE)
+var_price <- sd_price^2
+
+shape <- mean_price^2 / var_price
+rate <- mean_price / var_price
+
+ggplot() +
+  geom_histogram(data = data, aes(x = price, y = after_stat(density)), bins = 30,
+                 fill = "lightblue", alpha = 0.85, color = "cyan4") +
+  stat_function(fun = dgamma,
+                args = list(shape = shape, rate = rate),
+                color = "red", linewidth = 1) +
+  theme_bw() +
+  labs(x = "Kaina", y = "Tankis")
+```
+
+
+```{python eval=FALSE, include=FALSE}
+sns.set_theme(style="whitegrid")
+
+plt.figure(figsize=(6, 6))
+stats.probplot(data['price'].dropna(), dist="norm", plot=plt)
+
+plt.gca().lines[1].set_color('red')
+plt.gca().lines[1].set_linestyle('--')
+
+plt.xlabel("Teoriniai kvantiliai")
+plt.ylabel("Empiriniai kvantiliai")
+plt.tight_layout()
+plt.show()
+```
+
+```{r echo=FALSE, tab.cap="Kainos skaitinės charakteristikos"}
+price_stats <- numeric_var_outliers(data, "price")
+
+price_table <- data.frame(Kintamasis = "Kaina") %>% cbind(price_stats)
+
+kable(price_table)
+```
+
+```{python eval=FALSE, include=FALSE}
+price_stats = numeric_var_outliers(data, 'price')
+
+price_table = pd.DataFrame({'Kintamasis': ['Kaina']})
+price_table = pd.concat([price_table, price_stats], axis=1)
+
+print(tabulate(price_table, headers='keys', tablefmt='github', showindex=False))
+```
+
+Kainos kintamajame egzistuoja 54 išskirtys. Išskirtimis šiame darbe laikysime stebėjimus, nutolusius per 1,5 tarpkvartilinio ploto nuo Q1 ir Q3.
+
+```{r echo=FALSE, tab.cap="Shapiro-Wilko testas netransformuotai kainai"}
+test1 <- shapiro.test(data$price)
+
+test1_table <- tibble(
+  `W statistika` = sub("\\.", ",", format(round(test1$statistic, 4), nsmall = 4)),
+  `p reikšmė` = sub("\\.", ",", format.pval(test1$p.value, digits = 4, eps = 0.001))
+)
+
+kable(test1_table)
+```
+
+```{python eval=FALSE, include=FALSE}
+test1 = shapiro(data['price'].dropna())
+
+test1_table = pd.DataFrame({
+    'W statistika': [round(test1.statistic, 4)],
+    'p reikšmė': ["{:.4g}".format(test1.pvalue)]  # similar to format.pval in R
+})
+
+print(tabulate(test1_table, headers='keys', tablefmt='github', showindex=False))
+```
+
+Kainos histrograma primena log-normalųjį pasiskirstymą, tačiau įvykdžius logaritmavimą duomenims, testo rezutatai tik nežymiai pagerėjo, todėl pasirinkome pritaikyti Box-Cox transformaciją dėl kainos neneigiamumo.
+
+```{r echo=FALSE, fig.cap="Transformuotos kainos histograma", fig.height=3.6, fig.width=8, warning=FALSE}
+bc_model <- lm(price ~ 1, data = data)
+
+bc <- boxcox(bc_model, Lambda = seq(-2, 2, 0.1), plotit = FALSE)
+
+lambda_opt <- bc$x[which.max(bc$y)]
+
+data$price_bc <- ((data$price)^lambda_opt - 1) / lambda_opt
+
+mean_price_bc <- mean(data$price_bc, na.rm = TRUE)
+sd_price_bc <- sd(data$price_bc, na.rm = TRUE)
+
+ggplot(data, aes(x = price_bc)) +
+  geom_histogram(aes(y = ..density..), bins = 30,
+                 fill = "lightblue", alpha = 0.85, color = "cyan4") +
+  stat_function(fun = dnorm,
+                args = list(mean = mean_price_bc, sd = sd_price_bc),
+                color = "red", size = 1) +
+  theme_bw() +
+  labs(x = "Kaina (Box-Cox transformuota)", y = "Tankis")
+
+```
+
+```{python eval=FALSE, include=FALSE}
+price_positive = data['price'].dropna()
+if (price_positive <= 0).any():
+    price_positive += 1e-6
+
+price_bc, lambda_opt = boxcox(price_positive)
+data['price_bc'] = np.nan
+data.loc[price_positive.index, 'price_bc'] = price_bc
+
+mean_price_bc = np.nanmean(data['price_bc'])
+sd_price_bc = np.nanstd(data['price_bc'], ddof=1)
+
+sns.set_theme(style="whitegrid")
+plt.figure(figsize=(8, 6))
+sns.histplot(
+    data=data,
+    x='price_bc',
+    bins=30,
+    stat='density',
+    color='lightblue',
+    edgecolor='cyan',
+    alpha=0.85
+)
+
+x_vals = np.linspace(min(data['price_bc'].dropna()), max(data['price_bc'].dropna()), 1000)
+plt.plot(x_vals, norm.pdf(x_vals, loc=mean_price_bc, scale=sd_price_bc), color='red', lw=1)
+
+plt.xlabel("Kaina (Box-Cox transformuota)")
+plt.ylabel("Tankis")
+plt.tight_layout()
+plt.show()
+```
+
+\FloatBarrier
+
+```{r echo=FALSE, tab.cap="Shapiro-Wilko testas transformuotai kainai"}
+test2 <- shapiro.test(data$price_bc)
+
+test2_table <- tibble(
+  `W statistika` = sub("\\.", ",", format(round(test2$statistic, 4), nsmall = 4)),
+  `p reikšmė` = sub("\\.", ",", format.pval(test2$p.value, digits = 4, eps = 0.001))
+)
+
+kable(test2_table)
+```
+
+```{python eval=FALSE, include=FALSE}
+test2 = shapiro(data['price_bc'].dropna())
+
+test2_table = pd.DataFrame({
+    'W statistika': [round(test2.statistic, 4)],
+    'p reikšmė': ["{:.4g}".format(test2.pvalue)]
+})
+
+print(tabulate(test2_table, headers='keys', tablefmt='github', showindex=False))
+```
+
+Po Box-Cox transformacijos kainos pasiskirstymas tapo panašesnis į normalųjį, tačiau p reikšmė yra mažesnė už pasikliovimo lygmenį $\alpha = 0,05$, todėl, formaliai kalbant, nėra pakankamai įrodymų normalumui teigti.
+
+```{r fig.height=3.6, fig.width=8, echo=FALSE, fig.cap="Transformuotos kainos empiriniai ir teoriniai kvantiliai"}
+ggplot(data, aes(sample = price_bc)) +
+  stat_qq_point() +
+  stat_qq_line(color = "red", linetype = "dashed") +
+  theme_bw() +
+  labs(x = "Teoriniai kvantiliai", y = "Empiriniai kvantiliai")
+```
+
+```{python eval=FALSE, include=FALSE}
+sns.set_theme(style="whitegrid")
+
+plt.figure(figsize=(6, 6))
+stats.probplot(data['price_bc'].dropna(), dist="norm", plot=plt)
+
+plt.gca().lines[1].set_color('red')
+plt.gca().lines[1].set_linestyle('--')
+
+plt.xlabel("Teoriniai kvantiliai")
+plt.ylabel("Empiriniai kvantiliai")
+plt.tight_layout()
+plt.show()
+```
+
+\FloatBarrier
+
+Normalumo nebuvimą parodo ir kvantilių grafikas. Skirstinio galuose matomi stiprūs nukrypimai nuo teorinių kvantilių. Tačiau kadangi neturime pakankamų žinių apie duomenų tvarkymą ir tiesinio modelio alternatyvas, tai šiame darbe laikysimės prielaidos, kad transformuotas atsako kintamasis yra normaliai pasiskirstęs.
+
+\newpage
+
+```{r include=FALSE}
+remove_outliers <- function(data) {
+  cols <- names(data)[sapply(data, is.numeric)]
+  data_rm_outliers <- data
+  
+  for (col in cols) {
+    Q1 <- quantile(data_rm_outliers[[col]], .25)
+    Q3 <- quantile(data_rm_outliers[[col]], .75)
+    IQR <- Q3 - Q1
+    lower_bound <- Q1 - 1.5 * IQR
+    upper_bound <- Q3 + 1.5 * IQR
+    
+    data_rm_outliers <- data_rm_outliers[data_rm_outliers[[col]] >= lower_bound &
+                                         data_rm_outliers[[col]] <= upper_bound, ]
+  }
+  return(data_rm_outliers)
+}
+
+data_rm_outliers <- remove_outliers(data)
+
+scatter_function <- function(variable, name) {
+  p <- ggplot(data_rm_outliers, aes(x = variable, y = price_bc)) +
+    geom_point(color = "lightblue", size = 3, alpha = 0.5) +
+    geom_smooth(method = "lm", color = "maroon", linewidth = 0.7) +
+    labs(x = name, y = "Kaina (Box-Cox)") +
+    theme_bw()
+  return(p)
+}
+
+corr_rida <- scatter_function(data_rm_outliers$mileage, "Rida")
+corr_bako_talpa <- scatter_function(data_rm_outliers$tank_capacity, "Bako talpa")
+corr_turis <- scatter_function(data_rm_outliers$cc_displacement, "Tūris")
+corr_galia <- scatter_function(data_rm_outliers$bhp, "Variklio galingumas (AG)")
+corr_sukimo_momentas <- scatter_function(data_rm_outliers$torque, "Sukimo momentas")
+corr_kuro_sanaudos <- scatter_function(data_rm_outliers$fuel_economy, "Kuro sąnaudos")
+```
+
+```{python eval=FALSE, include=FALSE}
+def remove_outliers(df):
+    numeric_cols = df.select_dtypes(include='number').columns
+    Q1 = df[numeric_cols].quantile(0.25)
+    Q3 = df[numeric_cols].quantile(0.75)
+    IQR = Q3 - Q1
+    mask = ~((df[numeric_cols] < (Q1 - 1.5 * IQR)) | (df[numeric_cols] > (Q3 + 1.5 * IQR))).any(axis=1)
+    return df[mask]
+  
+data_rm_outliers = remove_outliers(data)
+
+def scatter_function(x, y, name):
+    fig, ax = plt.subplots(figsize=(5,4))
+    sns.regplot(x=x, y=y, scatter_kws={'alpha':0.4, 'color':'lightblue'},
+                line_kws={'color':'maroon', 'lw':0.5}, ax=ax)
+    ax.set_xlabel(name)
+    ax.set_ylabel("Kaina")
+    ax.grid(True, color='gray', linestyle='--', linewidth=0.5)
+    ax.set_axisbelow(True)
+    plt.tight_layout()
+    return ax
+  
+corr_rida = scatter_function(data_rm_outliers["mileage"], data_rm_outliers["price"], "Rida")
+corr_bako_talpa = scatter_function(data_rm_outliers["tank_capacity"], data_rm_outliers["price"], "Bako talpa")
+corr_turis = scatter_function(data_rm_outliers["cc_displacement"], data_rm_outliers["price"], "Tūris")
+corr_galia = scatter_function(data_rm_outliers["bhp"], data_rm_outliers["price"], "Stabdžių arklio galios")
+corr_sukimo_momentas = scatter_function(data_rm_outliers["torque"], data_rm_outliers["price"], "Sukimo momentas")
+corr_kuro_sanaudos = scatter_function(data_rm_outliers["fuel_economy"], data_rm_outliers["price"], "Kuro sąnaudos")
+
+#corr_rida
+#plt.show()
+```
+
+## Gamintojas
+
+```{r echo=FALSE, fig.height=3.6, fig.width=8, fig.cap="Automobilių skaičius atskiram gamintojui"}
+p1 <- ggplot(data, aes(x = manufacturer, fill = manufacturer)) +
+  geom_bar() +
+  geom_text(stat = "count", aes(label = ..count..), vjust = -0.3) +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.position = "none") +
+  labs(x = "Gamintojas", y = "Automobilių skaičius") +
+  ylim(0, 315)
+
+print(p1)
+```
+
+```{python eval=FALSE, include=FALSE}
+p1 = plt.figure(figsize=(8, 6))
+sns.countplot(data=data, x='manufacturer', hue='manufacturer', dodge=False, legend=False)
+
+plt.xticks(rotation=45, ha='right')
+plt.xlabel("Gamintojas")
+plt.ylabel("Automobilių skaičius")
+
+sns.set_theme(style="whitegrid")
+
+plt.show()
+```
+
+Gamintojo kintamojo pasiskirstyme matomas aiškus netolygumas. Duomenų rinkinį dominuoja gamintojai *Hyundai* ir *Suzuki*. Rinkinyje dauguma gamintojų stebinių nesiekia 50-ies. Į tai reikės atsižvelgti rengiant modelį, kadangi galime pritrūkti stebėjimų padalijus duomenų rinkinį į validavimo ir testavimo rinkinius.
+
+```{r echo=FALSE, fig.height=3.75, fig.width=8, fig.cap="Kainos pasiskirstymas pagal gamintoją"}
+p2 <- ggplot(data, aes(x = manufacturer, y=price, fill = manufacturer)) +
+  geom_boxplot() +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.position = "none") +
+  labs(x = "Gamintojas", y = "Kaina")
+
+
+manufacturer_price <- data %>%
+  group_by(manufacturer) %>%
+  summarise(mean = mean(price),
+            sd = sd(price))
+
+p3 <- ggplot(manufacturer_price, aes(x = manufacturer, y = mean, fill = manufacturer)) +
+  geom_point() +
+  geom_errorbar(aes(ymin=mean-sd, ymax=mean+sd), width=.2,
+                position=position_dodge(0.05)) + 
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.position = "none") +
+  labs(x = "Gamintojas", y = "Vidutinė kaina") +
+  ylim(0, 40000)
+
+p2 + p3
+```
+
+```{python eval=FALSE, include=FALSE}
+sns.set_theme(style="whitegrid")
+
+p2 = plt.figure(figsize=(14, 6))
+plt.subplot(1, 2, 1)
+sns.boxplot(data=data, x='manufacturer', y='price', hue='manufacturer', dodge=False, legend=False)
+plt.xticks(rotation=45, ha='right')
+plt.xlabel("Gamintojas")
+plt.ylabel("Kaina")
+
+manufacturer_price = (
+    data.groupby('manufacturer', as_index=False)
+        .agg(mean=('price', 'mean'), sd=('price', 'std'))
+)
+
+plt.subplot(1, 2, 2)
+sns.pointplot(data=manufacturer_price, x='manufacturer', y='mean', hue='manufacturer', dodge=False, legend=False)
+
+plt.errorbar(
+    manufacturer_price['manufacturer'],
+    manufacturer_price['mean'],
+    yerr=manufacturer_price['sd'],
+    fmt='none', ecolor='black', capsize=4
+)
+plt.xticks(rotation=45, ha='right')
+plt.xlabel("Gamintojas")
+plt.ylabel("Vidutinė kaina")
+plt.ylim(0, 40000)
+
+plt.tight_layout()
+plt.show()
+```
+
+\FloatBarrier
+
+Gamintojų *Honda*, *Hyundai*, *Nissan*, *Renault* ir *Škoda* kainos diapozonas yra labai platus. Tačiau to ir galima tikėtis, kadangi automobilio kaina priklauso ne vien nuo gaminančios įmonės, bet ir nuo kėbulo tipo ir pan. Grafikuose vaizduojami kainų diapozonai taip pat gali neatitikti realaus diapozono visoje naudotų automobilių rinkoje, kadangi dirbame su tik 900+ stebinių, o vien ES keliais naudojasi virš 250+ mln. automobilių [@acea_vehicles_2025].
+
+Kadangi kai kuriose gamintojo kategorijose turime labai nedaug stebinių, todėl apjungsime gamintojus pagal jų būstinės valstybę ir sukursime naują kintamąjį.
+
+```{r echo=FALSE, tab.cap="Gamintojų skaičius pagal būstinės valstybę"}
+data <- data %>%
+  mutate(manufacturer_country = case_when(
+    manufacturer %in% c("Chevrolet", "Ford", "Jeep") ~ "United States",
+    manufacturer %in% c("Datsun", "Honda", "Nissan", "Toyota") ~ "Japan",
+    manufacturer %in% c("Hyundai", "Kia") ~ "South Korea",
+    manufacturer %in% c("Mahindra", "Maruti Suzuki", "Tata") ~ "India",
+    manufacturer %in% c("MG Motors") ~ "United Kingdom",
+    manufacturer %in% c("Renault") ~ "France",
+    manufacturer %in% c("Skoda") ~ "Czech Republic",
+    manufacturer %in% c("Volkswagen") ~ "Germany",
+    TRUE ~ "Other"
+  ))
+
+data %>%
+  count(manufacturer_country, name = "Count") %>%
+  arrange(desc(Count)) %>%
+  kable(col.names = c("Gamintojo valstybė", "Automobilių skaičius"))
+```
+
+```{python eval=FALSE, include=FALSE}
+data['manufacturer_country'] = data['manufacturer'].map({
+    "Chevrolet": "United States",
+    "Ford": "United States",
+    "Jeep": "United States",
+    "Datsun": "Japan",
+    "Honda": "Japan",
+    "Nissan": "Japan",
+    "Toyota": "Japan",
+    "Hyundai": "South Korea",
+    "Kia": "South Korea",
+    "Mahindra": "India",
+    "Maruti Suzuki": "India",
+    "Tata": "India",
+    "MG Motors": "United Kingdom",
+    "Renault": "France",
+    "Skoda": "Czech Republic",
+    "Volkswagen": "Germany"
+}).fillna("Other")
+
+manufacturer_country_count = (
+    data.groupby('manufacturer_country')
+        .size()
+        .reset_index(name='Count')
+        .sort_values(by='Count', ascending=False)
+        .rename(columns={
+            'manufacturer_country': 'Gamintojo valstybė',
+            'Count': 'Automobilių skaičius'
+        })
+)
+
+print(tabulate(manufacturer_country_count, headers='keys', tablefmt='github', showindex=False))
+```
+
+```{r echo=FALSE, fig.cap="Kainos pasiskirstymas pagal gamintojo valstybę", fig.height=4, fig.width=8}
+p4 <- ggplot(data, aes(x = manufacturer_country, y = price, fill = manufacturer_country)) +
+  geom_boxplot() +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.position = "none") +
+  labs(x = "Gamintojo valstybė", y = "Kaina", fill = "Šalis")
+
+manufacturer_country_price <- data %>%
+  group_by(manufacturer_country) %>%
+  summarise(mean = mean(price), sd = sd(price), .groups = "drop")
+
+p5 <- ggplot(manufacturer_country_price, aes(x = manufacturer_country, y = mean, fill = manufacturer_country)) +
+  geom_point() +
+  geom_errorbar(aes(ymin=mean-sd, ymax=mean+sd), width=.2,
+                position=position_dodge(0.05)) + 
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.position = "none") +
+  labs(x = "Gamintojo valstybė", y = "Vidutinė kaina") +
+  ylim(0, 40000)
+
+p4 + p5
+```
+
+```{python eval=FALSE, include=FALSE}
+sns.set_theme(style="whitegrid")
+
+p4 = plt.figure(figsize=(14, 6))
+plt.subplot(1, 2, 1)
+sns.boxplot(
+    data=data,
+    x='manufacturer_country',
+    y='price',
+    hue='manufacturer_country',
+    dodge=False,
+    legend=False
+)
+plt.xticks(rotation=45, ha='right')
+plt.xlabel("Gamintojo valstybė")
+plt.ylabel("Kaina")
+
+manufacturer_country_price = (
+    data.groupby('manufacturer_country', as_index=False)
+        .agg(mean=('price', 'mean'), sd=('price', 'std'))
+)
+
+plt.subplot(1, 2, 2)
+sns.pointplot(
+    data=manufacturer_country_price,
+    x='manufacturer_country',
+    y='mean',
+    hue='manufacturer_country',
+    dodge=False,
+    legend=False
+)
+plt.errorbar(
+    manufacturer_country_price['manufacturer_country'],
+    manufacturer_country_price['mean'],
+    yerr=manufacturer_country_price['sd'],
+    fmt='none', ecolor='black', capsize=4
+)
+plt.xticks(rotation=45, ha='right')
+plt.xlabel("Gamintojo valstybė")
+plt.ylabel("Vidutinė kaina")
+plt.ylim(0, 40000)
+
+plt.tight_layout()
+plt.show()
+```
+
+Apjungę stebinius pagal gamintojo valstybę, matome, kad plačiausią kainų diapozoną turi Čekija (sudaro tik 4 Škoda automobiliai). Čekiškų automobilių modeliavimo metu naudoti negalėsime. Labiausiai išsiskiria Jungtinės Karalystės automobiliai, kurių kainos diapozonas koncentruotas aplink 25000 eurų. Taip pat egzistuoja ir natūralios išskirtys, kadangi grupavimas pagal valstybes yra grubus.
+
+\FloatBarrier
+
+\newpage
+
+## Gamybos metai
+
+```{r echo=FALSE, fig.height=3.6, fig.width=8, fig.cap="Siūlomų automobilių skaičius atskirų gamybos metų atžvilgiu"}
+p6 <- ggplot(data, aes(x = year, fill = year)) +
+  geom_bar() +
+  geom_text(stat = "count", aes(label = ..count..), vjust = -0.3) +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.position = "none") +
+  labs(x = "Gamybos metai", y = "Automobilių skaičius") +
+  ylim(0, 142)
+
+print(p6)
+```
+
+```{python eval=FALSE, include=FALSE}
+sns.set_theme(style="whitegrid")
+
+p6 = plt.figure(figsize=(8, 6))
+sns.countplot(data=data, x='year', hue='year', dodge=False, legend=False)
+
+plt.xticks(rotation=45, ha='right')
+plt.xlabel("Gamybos metai")
+plt.ylabel("Automobilių skaičius")
+
+plt.tight_layout()
+plt.show()
+```
+
+```{r echo=FALSE, tab.cap="Kainos skaitinės charakteristikos"}
+year_stats <- numeric_var_outliers(data %>% mutate(year = as.numeric(as.character(year))), "year")
+
+price_table <- data.frame(Kintamasis = "Gamybos metai") %>% cbind(year_stats)
+
+kable(price_table)
+```
+
+```{python eval=FALSE, include=FALSE}
+data['year'] = pd.to_numeric(data['year'], errors='coerce')
+
+year_stats = numeric_var_outliers(data, 'year')
+
+year_table = pd.DataFrame({'Kintamasis': ['Gamybos metai']})
+year_table = pd.concat([year_table, year_stats], axis=1)
+
+print(tabulate(year_table, headers='keys', tablefmt='github', showindex=False))
+```
+
+Vidutinis (medianinis) automobilis turimame duomenų rinkinyje buvo pagamintas 2017 m.
+
+Iš grafiko matome, kad didžioji dalis automobilių, registruotų duomenų rinkinyje, buvo pagaminti 2017-2020 metų laikotarpyje. Metaduomenyse įrašų rinkimo laikotarpis nenurodytas, tačiau galime spėti iš gamybos metų, kad duomenys rinkti 2022 m. (sutampa su duomenų rinkinio publikavimo data).
+
+```{r echo=FALSE, fig.cap="Kainos pasiskirstymas pagal gamybos metus", fig.height=3.75, fig.width=8}
+p7 <- ggplot(data, aes(x = year, y=price, fill = year)) +
+  geom_boxplot() +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.position = "none") +
+  labs(x = "Gamybos metai", y = "Kaina")
+
+
+manufacturer_price <- data %>%
+  group_by(year) %>%
+  summarise(mean = mean(price),
+            sd = sd(price))
+
+p8 <- ggplot(manufacturer_price, aes(x = year, y = mean, fill = year)) +
+  geom_point() +
+  geom_errorbar(aes(ymin=mean-sd, ymax=mean+sd), width=.2,
+                position=position_dodge(0.05)) + 
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.position = "none") +
+  labs(x = "Gamybos metai", y = "Vidutinė kaina") +
+  ylim(0, 40000)
+
+p7 + p8
+```
+
+```{python eval=FALSE, include=FALSE}
+fig, axes = plt.subplots(1, 2, figsize=(16, 3.75))
+
+sns.boxplot(data=data, x="year", y="price", hue="year", dodge=False, ax=axes[0])
+axes[0].set_xlabel("Gamybos metai")
+axes[0].set_ylabel("Kaina")
+axes[0].tick_params(axis='x', rotation=45)
+axes[0].legend_.remove()
+
+sns.pointplot(data=manufacturer_price, x="year", y="mean", hue="year", dodge=0.05, join=False, ax=axes[1], legend=False)
+
+axes[1].errorbar(manufacturer_price["year"], manufacturer_price["mean"], yerr=manufacturer_price["sd"],
+                 fmt="none", ecolor="gray", elinewidth=1, capsize=3)
+axes[1].set_xlabel("Gamybos metai")
+axes[1].set_ylabel("Vidutinė kaina")
+axes[1].set_ylim(0, 40000)
+axes[1].tick_params(axis='x', rotation=45)
+
+plt.tight_layout()
+plt.show()
+```
+
+\FloatBarrier
+
+Grafikas rodo, kad kuo automobilio gamybos data artimesnė 2022-iems metams, tuo automobilio kaina yra brangesnė. Tai atitinka bendrą tendenciją, kuri sako, kad automobilis per pirmus metus praranda apie 20-30%, o po 5 - 50% savo vertės [@car_depreciation]. Ši tendencija negalioja 2021-2022 m. automobilių stebiniams. Tikėtina, kad to priežastis yra automobilių nehomogeniškumas skirtingų metų atžvilgiu, t. y. puslapyje, iš kurio buvo surinkti šie duomenys, kurių nors metų kategorijoje gali pasitaikyti daugiau brangesnių automobilių, kitais - pigesnių.
+
+\newpage
+
+## Kėbulas
+
+```{r echo=FALSE, fig.cap="Automobilių kainos skaičiaus pasiskirstymas pagal kėbulo tipą", fig.height=6, fig.width=8}
+body_type_freq <- data %>% count(body_type) %>%
+  ggplot(aes(x = body_type, y=n, fill = body_type)) +
+  geom_col() +
+  geom_text(aes(label = n), vjust =-0.25) +
+  ylim(c(0, 550)) +
+  labs(x = "Kėbulo tipas", y = "Automobilių skaičius") +
+  theme_bw() +
+  theme(legend.position = "none")
+
+body_type_price <- ggplot(data, aes(x = body_type, y = price, fill = body_type)) +
+  geom_boxplot() +
+  labs(x = "", y = "Kaina") +
+  theme_bw() +
+  ylim(c(0, 41000)) +
+  theme(legend.position = 'none',
+        axis.text.x = element_text(angle = 45, hjust = 1))
+
+bt_price <- data %>%
+  group_by(body_type) %>%
+  summarise(mean = mean(price), sd = sd(price))
+
+body_type_avg_price <- ggplot(bt_price, aes(x = body_type, y = mean)) +
+  geom_point() +
+  geom_errorbar(aes(ymin=mean-sd, ymax=mean+sd), width=.2,
+                position=position_dodge(0.05)) + 
+  theme_bw() +
+  ylim(c(0, 41000)) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.position = "none") +
+  labs(x = "", y = "Vidutinė kaina")
+
+(body_type_freq / ( body_type_price + body_type_avg_price)) + theme(aspect.ratio = 3/4)
+```
+
+\FloatBarrier
+
+```{python eval=FALSE, include=FALSE}
+bt_price = data.groupby("body_type")["price"].agg(['mean', 'std']).reset_index()
+
+fig = plt.figure(figsize=(8, 6))
+gs = fig.add_gridspec(2, 2)
+
+ax1 = fig.add_subplot(gs[0, :])
+sns.countplot(data=data, x="body_type", palette=ggplot2_colors, ax=ax1)
+ax1.set_xlabel("")
+ax1.set_ylabel("Automobilių skaičius")
+ax1.legend([], [], frameon=False)
+
+ax2 = fig.add_subplot(gs[1, 0])
+sns.boxplot(data=data, x="body_type", y="price", palette=ggplot2_colors, ax=ax2)
+ax2.set_xlabel("Kėbulo tipas")
+ax2.set_ylabel("Kaina")
+ax2.tick_params(axis='x', rotation=45)
+ax2.legend([], [], frameon=False)
+
+ax3 = fig.add_subplot(gs[1, 1])
+ax3.errorbar(bt_price["body_type"], bt_price["mean"],
+             yerr=bt_price["std"], fmt='o', capsize=3, color='black')
+ax3.set_xlabel("")
+ax3.set_ylabel("Vidutinė kaina")
+ax3.tick_params(axis='x', rotation=45)
+
+for a in [ax1, ax2, ax3]:
+    a.grid(True, axis='both', linewidth=0.5)
+    a.set_axisbelow(True)
+
+plt.tight_layout()
+plt.show()
+```
+
+\FloatBarrier
+
+Duomenys pateikti grafike parodė, kad 2011-2021 m. laikotarpyje pagamintų Hetčbekų (angl. \textit{hatchback}) pasiūla panaši, kiekvienų metų gamybos automobilių nuo 30 iki 60. Tai nepasakytina apie kitus kėbulus. Pastebėta, kad Krosoverių (angl. \textit{crossover}) parduodama pagamintų tik siaurame 2015-2020 m. laikotarpyje, o kitų yra beveik iš viso turimo laikotarpio.
+
+```{r echo=FALSE, fig.height=4, fig.width=8, fig.cap="Kėbulo tipo santykiniai dažniai pagal metus"}
+bt_x_year <- as.data.frame(table(data$body_type, data$year))
+colnames(bt_x_year) <- c("body_type", "year", "count")
+
+ggplot(bt_x_year, aes(x = year, y = count, fill = body_type)) +
+  geom_col() +
+  labs(x = "Metai", y = "Automobilių skaičius", fill = "Kėbulas") +
+  theme_bw() +
+  theme(legend.position = "bottom")
+```
+
+```{python eval=FALSE, include=FALSE}
+bt_x_year = pd.crosstab(data["body_type"], data["year"]).reset_index()
+bt_x_year = bt_x_year.melt(id_vars="body_type", var_name="year", value_name="count")
+
+bt_x_year["year"] = bt_x_year["year"].astype(str)
+
+bt_x_year = bt_x_year.pivot(index="year", columns="body_type", values="count")
+
+bt_x_year = bt_x_year[bt_x_year.columns[::-1]]
+fig, ax = plt.subplots(figsize=(8,6), constrained_layout=True)
+bt_x_year.plot(kind="bar", stacked=True, width=0.9, color=ggplot2_colors[0:5][::-1], ax=ax)
+ax.set_xlabel("Metai")
+ax.set_ylabel("Automobilių skačius")
+ax.legend(
+    loc="upper center",
+    bbox_to_anchor=(0.5, -0.2),
+    ncol=5,
+    frameon=False,
+    title=None
+)
+plt.show()
+```
+
+\FloatBarrier
+
+Duomenų rinkinyje dominuoja hetčbekai, kurių yra 482 ir jų beveik du kartus daugiau nei sedanų (226) ar visureigių (SUV, 206). Iš vidurkių grafiko matome, jog visureigių kaina vidutiniškai viršija likusių kėbulų kainą, nors ir su dideliu standartiniu nuokrypiu. Stačiakampės diagramos rodo, kad sedanų kategorijoje turime labai aiškią išskirtį - 40 tūkst. eurų vertės automobilį.
+
+Kadangi poros kėbulo tipo automobilių nedaug, t. y. Krosoverių ir MUV, tai automobiliai buvo surūšiuoti į mažus ir didelius pagal kėbulą. Prie mažų kėbulų prskirti Sedanai ir Hetčbekai, o likę prie didelių.
+
+```{r include=FALSE}
+data <- data %>% 
+  mutate(body_type_group = case_when(
+    body_type %in% c("suv", "crossover", "muv") ~ "large_vehicles",
+    body_type %in% c("sedan", "hatchback") ~ "smaller_vehicles"
+  ))
+```
+
+```{python eval=FALSE, include=FALSE}
+data["body_type_group"] = np.where(
+    data["body_type"].isin(["suv", "crossover", "muv"]), "large_vehicles",
+    np.where(data["body_type"].isin(["sedan", "hatchback"]), "smaller_vehicles", data["body_type"])
+)
+```
+
+```{r echo=FALSE, fig.cap="Automobilių kainos skaičiaus pasiskirstymas pagal kėbulo tipo grupę", fig.height=3.5, fig.width=8}
+body_type_freq <- data %>% count(body_type_group) %>%
+  ggplot(aes(x = body_type_group, y=n, fill = body_type_group)) +
+  geom_col() +
+  geom_text(aes(label = n), vjust =-0.25) +
+  ylim(c(0, 800)) +
+  labs(x = "Kėbulo tipo grupė", y = "Automobilių skaičius") +
+  theme_bw() +
+  theme(legend.position = "none")
+
+body_type_price <- ggplot(data, aes(x = body_type_group, y = price, fill = body_type_group)) +
+  geom_boxplot() +
+  labs(x = "", y = "Kaina") +
+  theme_bw() +
+  ylim(c(0, 41000)) +
+  theme(legend.position = 'none')
+
+bt_price <- data %>%
+  group_by(body_type_group) %>%
+  summarise(mean = mean(price), sd = sd(price))
+
+body_type_avg_price <- ggplot(bt_price, aes(x = body_type_group, y = mean)) +
+  geom_point() +
+  geom_errorbar(aes(ymin=mean-sd, ymax=mean+sd), width=.2,
+                position=position_dodge(0.05)) + 
+  theme_bw() +
+  ylim(c(0, 41000)) +
+  theme(legend.position = "none") +
+  labs(x = "", y = "Vidutinė kaina")
+
+(body_type_freq / ( body_type_price + body_type_avg_price)) + theme(aspect.ratio = 3/4)
+```
+
+\FloatBarrier
+
+```{python eval=FALSE, include=FALSE}
+bt_price = data.groupby("body_type_group")["price"].agg(['mean', 'std']).reset_index()
+
+fig = plt.figure(figsize=(8, 6))
+gs = fig.add_gridspec(2, 2)
+
+ax1 = fig.add_subplot(gs[0, :])
+sns.countplot(data=data, x="body_type_group", palette=ggplot2_colors, ax=ax1)
+ax1.set_xlabel("")
+ax1.set_ylabel("Automobilių skaičius")
+ax1.legend([], [], frameon=False)
+
+ax2 = fig.add_subplot(gs[1, 0])
+sns.boxplot(data=data, x="body_type_group", y="price", palette=ggplot2_colors, ax=ax2)
+ax2.set_xlabel("Kėbulo tipas")
+ax2.set_ylabel("Kaina")
+ax2.tick_params(axis='x', rotation=45)
+ax2.legend([], [], frameon=False)
+
+ax3 = fig.add_subplot(gs[1, 1])
+ax3.errorbar(bt_price["body_type_group"], bt_price["mean"],
+             yerr=bt_price["std"], fmt='o', capsize=3, color='black')
+ax3.set_xlabel("")
+ax3.set_ylabel("Vidutinė kaina")
+ax3.tick_params(axis='x', rotation=45)
+
+for a in [ax1, ax2, ax3]:
+    a.grid(True, axis='both', linewidth=0.5)
+    a.set_axisbelow(True)
+
+plt.tight_layout()
+plt.show()
+```
+
+\newpage
+
+## Spalva
+
+```{r echo=FALSE, fig.height=3, fig.width=9, fig.cap="Automobilių skaičius pagal spalvą"}
+data %>% count(color) %>%
+  ggplot(aes(x = color, y=n, fill = color)) +
+  geom_col(color = "black") +
+  geom_text(aes(label = n), vjust =-0.25) +
+  labs(x = "Spalva", y = "Automobilių skaičius") +
+  theme_bw() +
+  theme(legend.position = "none") +
+  scale_fill_manual(values = c(
+    "beige" = "beige","black" = "black", "blue" = "blue",
+    "bronze" = "brown2","golden" = "gold", "green" = "green",
+    "yellow" = "yellow","maroon" = "maroon", "orange" = "orange",
+    "purple" = "purple","red" = "red", "silver" = "#C0C0C0",
+    "grey" = "grey50","white" = "grey97", "brown" = "brown"
+  ))
+```
+
+\FloatBarrier
+
+Diagramoje matyti, jog rinkinyje dominuoja kiek mažiau nei pusė spalvų ir daugumos spalvų automobilių vos keli.
+
+```{r echo=FALSE, fig.cap="Kainos pasiskirstymas pagal spalvą", fig.height=5, fig.width=9}
+color_box <- ggplot(data, aes(x = color, y = price, fill = color)) +
+  geom_boxplot() +
+  labs(x = "Spalva", y = "Kaina") +
+  theme_bw() +
+  ylim(c(0, 41000)) +
+  theme(legend.position = "none", axis.text.x = element_text(angle = 45, hjust = 1)) +
+  scale_fill_manual(values = c(
+    "beige" = "beige","black" = "black", "blue" = "blue",
+    "bronze" = "brown2","golden" = "gold", "green" = "green",
+    "yellow" = "yellow","maroon" = "maroon", "orange" = "orange",
+    "purple" = "purple","red" = "red", "silver" = "#C0C0C0",
+    "grey" = "grey50","white" = "grey97", "brown" = "brown"
+  ))
+
+c_price <- data %>% 
+  group_by(color) %>% 
+  summarise(mean = mean(price),
+            sd = sd(price))
+
+color_avg_price <- ggplot(c_price, aes(x = color, y = mean)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean-sd, ymax = mean+sd), width=.4) +
+  theme_bw() +
+  ylim(c(0.0, 41000.0)) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.position = "none") +
+  labs(x = "Spalva", y = "Vidutinė kaina")
+
+color_box / color_avg_price
+```
+
+\FloatBarrier
+
+```{python eval=FALSE, include=FALSE}
+plt.figure(figsize=(12, 9))
+
+color_counts = data['color'].value_counts().sort_index()
+
+color_map = {
+    "beige": "beige", "black": "black", "blue": "blue",
+    "bronze": "#CD7F32", "golden": "gold", "green": "green",
+    "yellow": "yellow", "maroon": "maroon", "orange": "orange",
+    "purple": "purple", "red": "red", "silver": "#C0C0C0",
+    "grey": "grey", "white": "whitesmoke", "brown": "brown"
+}
+
+bar_colors = [color_map.get(c, 'gray') for c in color_counts.index]
+
+c1 = plt.subplot2grid((3, 1), (0, 0))
+c1.bar(color_counts.index, color_counts.values, color=bar_colors, edgecolor='black')
+c1.set_xlabel('Spalva')
+c1.set_ylabel("Automobilių skaičius")
+c1.grid(linestyle='--', alpha=0.6)
+
+c2 = plt.subplot2grid((3, 1), (1, 0))
+sns.boxplot(data=data, x='color', y='price', palette=color_map, linewidth=1, fliersize=2.5)
+c2.set_xlabel("Spalva")
+c2.set_ylabel("Kaina")
+c2.grid(linestyle='--', alpha=0.6)
+
+c_price = (data.groupby('color', as_index=False).agg(mean=('price', 'mean'), sd=('price', 'std')))
+
+c3 = plt.subplot2grid((3, 1), (2, 0))
+c3.errorbar(x=c_price['color'], y=c_price['mean'], yerr=c_price['sd'], fmt='o', ecolor='black', capsize=4, elinewidth=1, color='black')
+c3.set_xlabel("Spalva")
+c3.set_ylabel("Vidutinė kaina")
+c3.grid(linestyle='--', alpha=0.6)
+
+plt.tight_layout()
+plt.show()
+```
+
+Kadangi daugelio spalvų automobilių nėra daug, tai spalvas sugrupavome į keturias grupes: šaltos (\textit{cool}), šviesios (\textit{Light/Neutral}), tamsios (\textit{Neutral/Dark}) ir šiltos (\textit{Warm}) spalvos. Taigi mažiausioje grupėje yra 134 šaltos spalvos automobiliai, o didžiausioje 331 tamsus automobilis. Taip pat iš grafiko galima pastebėti, kad supanašėjo kainos vidurkiai, t. y. spalvų grupių vidutinė kaina yra apie 10 tūkst. eurų.
+
+```{r echo=FALSE, fig.cap="Automobilių skaičius spalvų grupėse", fig.height=3, fig.width=9}
+data <- data %>%
+  mutate(color_group = case_when(
+    color %in% c("black", "grey", "silver") ~ "Neutral / Dark",
+    color %in% c("white", "beige", "golden") ~ "Light / Neutral",
+    color %in% c("red", "maroon", "orange", "brown", "bronze", "yellow") ~ "Warm",
+    color %in% c("blue", "green", "purple") ~ "Cool",
+    TRUE ~ "Other"
+  ))
+
+data %>% count(color_group) %>%
+  ggplot(aes(x = color_group, y=n, fill = color_group)) +
+  geom_col(color = "black") +
+  geom_text(aes(label = n), vjust =-0.19) +
+  labs(x = "Spalvos grupė", y = "Automobilių skaičius") +
+  ylim(0, 350) +
+  theme_bw() +
+  theme(legend.position = "none") +
+  scale_fill_manual(values = c("Neutral / Dark" = "black", "Light / Neutral" = "beige",
+                               "Warm" = "orange", "Cool" = "blue"))
+
+```
+
+\FloatBarrier
+
+```{r echo=FALSE, fig.cap="Kainos pasiskirstymas pagal spalvų grupę", fig.height=4, fig.width=9}
+c_price_group <- data %>% 
+  group_by(color_group) %>% 
+  summarise(mean = mean(price),
+            sd = sd(price))
+
+p_cg1 <- ggplot(c_price_group, aes(x = color_group, y = mean)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean-sd, ymax = mean+sd), width=.4) +
+  theme_bw() +
+  ylim(c(0, 41000)) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.position = "none") +
+  labs(x = "Spalvos grupė", y = "Vidutinė kaina")
+
+p_cg2 <- ggplot(data, aes(x = color_group, y = price, fill = color_group)) +
+  geom_boxplot() +
+  theme_bw() +
+  ylim(c(0, 41000)) +
+  theme(legend.position = "none", axis.text.x = element_text(angle = 45, hjust = 1)) +
+  scale_fill_manual(values = c("Neutral / Dark" = "black", "Light / Neutral" = "beige",
+                               "Warm" = "orange", "Cool" = "blue")) +
+  labs(x = "Spalvos grupė", y = "Kaina")
+
+p_cg2 + p_cg1
+```
+
+\FloatBarrier
+
+```{python eval=FALSE, include=FALSE}
+data.loc[data['color'].isin(["black", "grey", "silver"]), 'color_group'] = "Neutral / Dark"
+data.loc[data['color'].isin(["white", "beige", "golden"]), 'color_group'] = "Light / Neutral"
+data.loc[data['color'].isin(["red", "maroon", "orange", "brown", "bronze", "yellow"]), 'color_group'] = "Warm"
+data.loc[data['color'].isin(["blue", "green", "purple"]), 'color_group'] = "Cool"
+
+order = ["Cool", "Light / Neutral", "Neutral / Dark", "Warm"]
+data["color_group"] = pd.Categorical(data["color_group"], categories=order, ordered=True)
+
+group_color_map = {
+    "Neutral / Dark": "black",
+    "Light / Neutral": "beige",
+    "Warm": "orange",
+    "Cool": "blue"
+}
+
+plt.figure(figsize=(12, 6))
+
+cg1 = plt.subplot2grid((1, 2), (0, 0))
+sns.countplot(data=data, x="color_group", palette=group_color_map, edgecolor="black", order=order)
+cg1.set_xlabel("Spalvos grupė")
+cg1.set_ylabel("Automobilių skaičius")
+cg1.grid(linestyle='--', alpha=0.6)
+
+c_price_group = (data.groupby("color_group", as_index=False).agg(mean=("price", "mean"), sd=("price", "std")))
+
+cg2 = plt.subplot2grid((1, 2), (0, 1))
+cg2.errorbar(x=c_price_group["color_group"], y=c_price_group["mean"], yerr=c_price_group["sd"], 
+             fmt='o', color='black', capsize=4, elinewidth=1)
+cg2.set_xlabel("Spalvos grupė")
+cg2.set_ylabel("Vidutinė kaina")
+cg2.grid(linestyle='--', alpha=0.6)
+
+plt.tight_layout()
+plt.show()
+```
+
+\newpage
+
+## Rida
+
+```{r echo=FALSE, fig.cap="Ridos pasiskirstymas ir ryšys su kaina", fig.height=5, fig.width=10, message=FALSE, warning=FALSE}
+label_sci <- function(digits = 2) {
+  force(digits)
+  function(x) {
+    if (length(x) == 0) return(character(0))
+    s <- scientific_format(digits = digits)(x)
+    s2 <- gsub("e([+-]?[0-9]+)", " %*% 10^\\1", s)
+    out <- vector("expression", length(s2))
+    for (i in seq_along(s2)) out[[i]] <- parse(text = s2[i])[[1]]
+    out
+  }
+}
+
+mileage_hist <- ggplot(data, aes(x = mileage)) +
+  geom_histogram(aes(y = after_stat(density)),
+                 binwidth = 6000,
+                 fill = "lightblue", alpha = 0.85, color = "cyan4") +
+  scale_y_continuous(labels = label_sci(2)) +
+    labs(x = "Rida", y = "Tankis") +
+  theme_bw()
+
+mileage_box <- ggplot(data, aes(y = mileage)) +
+  geom_boxplot() +
+  labs(y= "") +
+  coord_flip() +
+  theme_bw()+ 
+  theme(
+    axis.text.y = element_blank(),
+    axis.ticks.y = element_blank(),
+    axis.title.y = element_blank()
+)
+
+left <- (mileage_hist / mileage_box) + plot_layout(heights = c(5, 1))
+(left | corr_rida) + plot_layout(widths = c(2, 5))
+
+```
+
+```{python eval=FALSE, include=FALSE}
+sns.set_theme(style="whitegrid")
+
+fig = plt.figure(figsize=(8, 5))
+
+gs = gridspec.GridSpec(6, 7, figure=fig)
+
+ax_hist = fig.add_subplot(gs[0:4, 0:2])
+sns.histplot(
+    data=data,
+    x="mileage",
+    stat="density",
+    binwidth=6000,
+    color="lightblue",
+    edgecolor="#008B8B",
+    alpha=0.85,
+    ax=ax_hist
+)
+ax_hist.set_xlabel("Rida")
+ax_hist.set_ylabel("Tankis")
+
+formatter = ticker.ScalarFormatter(useMathText=True)
+formatter.set_powerlimits((-5, 5))
+ax_hist.yaxis.set_major_formatter(formatter)
+
+ax_box = fig.add_subplot(gs[4:, 0:2], sharex=ax_hist)
+sns.boxplot(data=data, x="mileage", color="lightgray", ax=ax_box)
+ax_box.set_xlabel("")
+ax_box.set_yticks([])
+ax_box.set_ylabel("")
+
+plt.setp(ax_box.get_xticklabels(), visible=False)
+
+ax_scatter = fig.add_subplot(gs[:, 2:])
+sns.regplot(
+    data=data_rm_outliers,
+    x="mileage",
+    y="price",
+    scatter_kws={'alpha':0.4, 'color':'lightblue'},
+    line_kws={'color':'maroon', 'lw':0.5},
+    ax=ax_scatter
+)
+ax_scatter.set_xlabel("Rida")
+ax_scatter.set_ylabel("Kaina")
+
+fig.tight_layout()
+plt.show()
+```
+
+\FloatBarrier
+
+Pateiktame paveiksle matome, kad ridos tankis turi dešininę asimetriją, taigi tarp naudotų automobilių mažesnė automobilio rida pasitaiko dažniau.
+
+```{r eval=FALSE, include=FALSE}
+data$mileage %>% summary(min = min(mileage), Q1 = quantile(mileage, 0.25),
+                         mediana = median(mileage), Q3 = quantile(mileage, 0.75),
+                         max = max(mileage))
+
+```
+
+| Kintamasis | Min  | 1Q    | Mediana | 3Q    | Max   |
+|------------|------|-------|---------|-------|-------|
+| Rida       | 1117 | 22598 | 37489   | 57394 | 99495 |
+
+: RIdos pasiskirstymo metrikos
+
+Šiame duomenų rinkinyje didžiausia rida 99 495 km, mažiausia 1 117 km. 50 % automobilių nuvažiavę tarp 22 598 km ir 57 394 km. 50 % automobilių nuvažiavę mažiau nei 37 489 km.
+
+\newpage
+
+## Savininkų skaičius
+
+```{python eval=FALSE, include=FALSE}
+owners_table = data["num_owners"].value_counts()
+owners_table
+owners_table/np.sum(owners_table)*100
+```
+
+```{r eval=FALSE, include=FALSE}
+owners_table <- table(data$num_owners)
+owners_table
+owners_table/sum(owners_table)*100
+```
+
+| Savininkų skaičius    | Vienas | Du     | Trys  |
+|-----------------------|--------|--------|-------|
+| **Dažnis**            | 816    | 153    | 4     |
+| **Santykinis dažnis** | 83,8 % | 15,7 % | 0,4 % |
+
+: Automobilių skaičius pagal buvusių savininkų skaičių
+
+Iš dažnių letelės akivaizdžiai matosi, kad absoliuti dauguma automobilių turėjo anksčiau vieną savininką, tai yra 83,8 %. Maždaug penkis kartus mažiau automobilių turėjo du savininkus (15,7 %) ir tik 4 automobiliai turėjo tris savininkus.
+
+```{r echo=FALSE, fig.cap="Automobilių kainos ir skaičiaus pasiskirtymas pagal savininkų skaičių", fig.height=3, fig.width=9, message=FALSE}
+p_no1 <- ggplot(data, aes(x=num_owners, fill = num_owners)) +
+  geom_bar() +
+  labs(x = "", y = "Automobilių skaičius") +
+  theme_bw() +
+  theme(legend.position = "none")
+
+p_no2 <- ggplot(data, aes(x = num_owners, y = price, fill = num_owners)) +
+  geom_boxplot() +
+  labs(x = "Savininkų sk.", y = "Kaina") +
+  theme_bw() +
+  ylim(c(0, 41000)) +
+  theme(legend.position = "none")
+
+avg_price_num_owners <- data %>% 
+  group_by(num_owners) %>% 
+  summarise(mean = mean(price), sd = sd(price))
+
+p_no3 <- ggplot(avg_price_num_owners, aes(x = num_owners, y = mean)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean-sd, ymax = mean+sd), width=.4) +
+  theme_bw() +
+  ylim(c(0, 41000)) +
+  labs(x = "", y = "Vidutinė kaina")
+
+p_no1 + p_no2 + p_no3
+```
+
+```{python eval=FALSE, include=FALSE}
+avg_price_num_owners = data.groupby("num_owners")["price"].agg(['mean', 'std']).reset_index()
+
+fig, axes = plt.subplots(1, 3, figsize=(9,3))
+
+sns.countplot(x="num_owners", data=data, palette=ggplot2_colors, ax=axes[0])
+axes[0].set_xlabel("")
+axes[0].set_ylabel("Automobilių skaičius")
+
+sns.boxplot(x="num_owners", y="price", data=data, palette=ggplot2_colors, ax=axes[1])
+axes[1].set_xlabel("Savininkų sk.")
+axes[1].set_ylabel("Kaina")
+
+axes[2].errorbar(
+    avg_price_num_owners['num_owners'],
+    avg_price_num_owners['mean'],
+    yerr=avg_price_num_owners['std'],
+    fmt='o', capsize=4, color='black'
+)
+axes[2].set_xlabel("")
+axes[2].set_ylabel("Vidutinė kaina")
+
+plt.tight_layout()
+fig.subplots_adjust(wspace=0.55)
+plt.show()
+```
+
+\FloatBarrier
+
+Iš stačiakampių diagramų akivaizdžiai matyti, kad visos išskirtys susikaupusios tarp automobilių, kurie turėjo vieną savininką. To reiktų tikėtis, kadangi tokių automobilių yra 816, t. y. 84 % visų duomenų. Toliau automobilių turėjusių du savininkus - 153, o tris savininkus tik 4. Dėl šio pasiskirstymo, automobilius, turėjusius du ir daugiau savininkų, apjungėme į vieną grupę.
+
+```{r fig.cap="Automobilių kainos ir skaičiaus pasiskirtymas pagal savininkų skaičiaus grupes", fig.height=3, fig.width=9, message=FALSE, include=FALSE}
+data <- data %>% 
+  mutate(num_owners_group= case_when(
+    num_owners %in% c("2nd", "3rd") ~ "more than 1",
+    TRUE ~ num_owners
+  ))
+
+p_nog1 <- ggplot(data, aes(x=num_owners_group, fill = num_owners_group)) +
+  geom_bar() +
+  labs(x = "", y = "Automobilių skaičius") +
+  theme_bw() +
+  theme(legend.position = "none")
+
+p_nog2 <- ggplot(data, aes(x = num_owners_group, y = price, fill = num_owners_group)) +
+  geom_boxplot() +
+  labs(x = "Savininkų sk.", y = "Kaina") +
+  theme_bw() +
+  ylim(c(0, 41000)) +
+  theme(legend.position = "none")
+
+avg_price_num_owners <- data %>% 
+  group_by(num_owners_group) %>% 
+  summarise(mean = mean(price), sd = sd(price))
+
+p_nog3 <- ggplot(avg_price_num_owners, aes(x = num_owners_group, y = mean)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean-sd, ymax = mean+sd), width=.4) +
+  theme_bw() +
+  ylim(c(0, 41000)) +
+  labs(x = "", y = "Vidutinė kaina")
+
+p_nog1 + p_nog2 + p_nog3
+```
+
+```{python eval=FALSE, include=FALSE}
+data['num_owners_group'] = np.where(
+    data['num_owners'].isin(['2nd', '3rd']),
+    'more than 1',
+    data['num_owners']
+)
+
+avg_price_num_owners = data.groupby("num_owners_group")["price"].agg(['mean', 'std']).reset_index()
+
+fig, axes = plt.subplots(1, 3, figsize=(9,3))
+
+sns.countplot(x="num_owners_group", data=data, palette=ggplot2_colors, ax=axes[0])
+axes[0].set_xlabel("")
+axes[0].set_ylabel("Automobilių skaičius")
+
+sns.boxplot(x="num_owners_group", y="price", data=data, palette=ggplot2_colors, ax=axes[1])
+axes[1].set_xlabel("Savininkų sk.")
+axes[1].set_ylabel("Kaina")
+
+axes[2].errorbar(
+    avg_price_num_owners['num_owners_group'],
+    avg_price_num_owners['mean'],
+    yerr=avg_price_num_owners['std'],
+    fmt='o', capsize=4, color='black'
+)
+axes[2].set_xlabel("")
+axes[2].set_ylabel("Vidutinė kaina")
+
+plt.tight_layout()
+fig.subplots_adjust(wspace=0.55)
+plt.show()
+```
+
+\FloatBarrier
+
+\newpage
+
+## Sėdimų vietų skaičius
+
+```{r eval=FALSE, include=FALSE}
+table(data$seating_capacity)
+```
+
+```{python eval=FALSE, include=FALSE}
+data["seating_capacity"].value_counts()
+```
+
+| Sėdimų vietų skaičius    | 4   | 5   | 6   | 7   | 8   |
+|--------------------------|-----|-----|-----|-----|-----|
+| **Automobilių skaičius** | 1   | 927 | 1   | 39  | 5   |
+
+: Automobilių skaičius pagal sėdimų vietų sk.
+
+```{r echo=FALSE, fig.height=3, fig.width=8, fig.cap="Kainos pasiskirstymas pagal sėdimas vietas"}
+
+p_sc1 <- ggplot(data, aes(x = seating_capacity, y = price, fill = seating_capacity)) +
+  geom_boxplot() +
+  labs(x = "Sėdimų vietų skaičius", y = "Kaina") +
+  theme_bw() +
+  ylim(0, 41000) +
+  theme(legend.position = "none")
+
+avg_price_seating_capacity <- data %>% 
+  group_by(seating_capacity) %>% 
+  summarise(mean = mean(price), sd = sd(price))
+
+p_sc2 <- ggplot(avg_price_seating_capacity, aes(x = seating_capacity, y = mean)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean-sd, ymax = mean+sd), width=.4) +
+  theme_bw() +
+  ylim(0, 41000) +
+  labs(x = "Sėdimų vietų skaičius", y = "Vidutinė kaina")
+
+p_sc1 + p_sc2
+```
+
+```{python eval=FALSE, include=FALSE}
+avg_price_seating_capacity = data.groupby("seating_capacity")["price"].agg(['mean', 'std']).reset_index()
+
+sns.set_theme(style="whitegrid")
+fig, axes = plt.subplots(1, 2, figsize=(8,4))
+
+sns.boxplot(x="seating_capacity", y="price", data=data, palette=ggplot2_colors, ax=axes[0])
+axes[0].set_xlabel("Sėdimų vietų sk.")
+axes[0].set_ylabel("Kaina")
+
+axes[1].errorbar(
+    avg_price_seating_capacity['seating_capacity'],
+    avg_price_seating_capacity['mean'],
+    yerr=avg_price_seating_capacity['std'],
+    fmt='o', capsize=4, color='black'
+)
+axes[1].set_xlabel("Sėdimų vietų sk.")
+axes[1].set_ylabel("Vidutinė kaina")
+
+plt.tight_layout()
+plt.show()
+```
+
+\FloatBarrier
+
+Iš dažnių lentelėje pateiktų duomenų matosi, kad beveik visi automobiliai šiame rinkinyje turi penkias sėdimas vietas, kita didesnė grupė yra automobilių su septyniomis vietomis, o kitų grupių vienetai. Atmetus grupes, kuriose yra tik po viena objektą, didžiausia vidutinė kaina yra automobilių su septyniomis vietomis, o mažiausia su aštuoniomis, tačiau jų taip pat yra tik 5, taigi skirtumas gali būti nereikšmingas. Patvirtinus, kad automobiliai, kurie duomenyse pažymėti turintys keturias ir šešias sėdimas vietas, pažymėti teisingai, stebėjimai buvo išmesti, o grupės automobilių su 7 ir 8 vietomis buvo sujungti į vieną grupę.
+
+```{r include=FALSE}
+# Internete rašo, kad yra 4 vietos
+
+data = data %>% filter(seating_capacity != 4 & seating_capacity != 6)
+
+data <- data %>%
+  mutate(seating_capacity_group = case_when(
+    seating_capacity == 5 ~ "5",
+    seating_capacity %in% c(7, 8) ~ "7+"
+  ))
+```
+
+```{python eval=FALSE, include=FALSE}
+data = data[~data['seating_capacity'].isin([4, 6])]
+
+data['seating_capacity_group'] = data['seating_capacity'].apply(
+    lambda x: '5' if x == 5 else ('7+' if x in [7, 8] else None)
+)
+```
+
+```{r echo=FALSE, fig.height=3, fig.width=8, fig.cap="Kainos pasiskirstymas pagal vietų grupes"}
+
+p_sc1 <- ggplot(data, aes(x = seating_capacity_group, y = price, fill = seating_capacity_group)) +
+  geom_boxplot() +
+  labs(x = "Sėdimų vietų sk.", y = "Kaina") +
+  theme_bw() +
+  theme(legend.position = "none")
+
+avg_price_seating_capacity <- data %>% 
+  group_by(seating_capacity_group) %>% 
+  summarise(mean = mean(price), sd = sd(price))
+
+p_sc2 <- ggplot(avg_price_seating_capacity, aes(x = seating_capacity_group, y = mean)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean-sd, ymax = mean+sd), width=.4) +
+  theme_bw() +
+  labs(x = "Sėdimų vietų sk.", y = "Vidutinė kaina")
+
+p_sc1 + p_sc2
+```
+
+\FloatBarrier
+
+```{python eval=FALSE, include=FALSE}
+avg_price_seating_capacity = data.groupby("seating_capacity_group")["price"].agg(['mean', 'std']).reset_index()
+
+sns.set_theme(style="whitegrid")
+fig, axes = plt.subplots(1, 2, figsize=(8,4))
+
+sns.boxplot(x="seating_capacity_group", y="price", data=data, palette=ggplot2_colors, ax=axes[0])
+axes[0].set_xlabel("Sėdimų vietų sk.")
+axes[0].set_ylabel("Kaina")
+
+axes[1].errorbar(
+    avg_price_seating_capacity['seating_capacity_group'],
+    avg_price_seating_capacity['mean'],
+    yerr=avg_price_seating_capacity['std'],
+    fmt='o', capsize=4, color='black'
+)
+axes[1].set_xlabel("Sėdimų vietų sk.")
+axes[1].set_ylabel("Vidutinė kaina")
+
+plt.tight_layout()
+plt.show()
+```
+
+\newpage
+
+## Kuro tipas
+
+| Kuro tipas        | Dyzelinas | Benzinas | Benzinas+dujos |
+|-------------------|-----------|----------|----------------|
+| Dažnis            | 188       | 783      | 2              |
+| Santykinis dažnis | 19,3 %    | 80,5 %   | 0,2 %          |
+
+: Automobilių skaičius pagal kuro tipą
+
+```{r eval=FALSE, include=FALSE}
+ft <- table(data$fuel)
+ft
+ft/sum(ft)*100
+```
+
+```{python eval=FALSE, include=FALSE}
+ft = data["fuel"].value_counts()
+ft
+ft/np.sum(ft)*100
+```
+
+```{r echo=FALSE, fig.height=2.5, fig.width=5.5, message=FALSE, warning=FALSE, fig.cap="Kuro tipo pasiskirstymas"}
+data %>% count(fuel) %>% 
+  ggplot(aes(x = fuel, y = n, fill = fuel)) +
+  geom_col() +
+  ylim(c(0, 850)) +
+  geom_text(aes(label = n), vjust =-0.25) +
+  labs(x = "Kuras", y = "Automobilių skaičius") +
+  theme_bw() +
+  theme(legend.position = "none")
+  
+```
+
+\FloatBarrier
+
+```{r echo=FALSE, fig.cap="Kaina pagal kuro tipą", fig.height=3, fig.width=8}
+p_f1 <- ggplot(data, aes(x = fuel, y = price, fill = fuel)) +
+  geom_boxplot() +
+  labs(x = "Kuras", y = "Kaina") +
+  theme_bw() +
+  ylim(c(0, 41000)) +
+  theme(legend.position = "none")
+
+avg_price_fuel <- data %>% 
+  group_by(fuel) %>% 
+  summarise(mean = mean(price), sd = sd(price))
+
+p_f2 <- ggplot(avg_price_fuel, aes(x = fuel, y = mean)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean-sd, ymax = mean+sd), width=.4) +
+  theme_bw() +
+  ylim(c(0, 41000)) +
+  labs(x = "Kuras", y = "Vidutinė kaina")
+
+p_f1 + p_f2
+```
+
+\FloatBarrier
+
+```{python eval=FALSE, include=FALSE}
+avg_price_fuel = data.groupby("fuel")["price"].agg(['mean', 'std']).reset_index()
+
+fig, axes = plt.subplots(1, 2, figsize=(8,4))
+
+sns.boxplot(x="fuel", y="price", data=data, palette=ggplot2_colors, ax=axes[0])
+axes[0].set_xlabel("Kuras")
+axes[0].set_ylabel("Kaina")
+
+axes[1].errorbar(
+    avg_price_fuel['fuel'],
+    avg_price_fuel['mean'],
+    yerr=avg_price_fuel['std'],
+    fmt='o', capsize=4, color='black'
+)
+axes[1].set_xlabel("Kuras")
+axes[1].set_ylabel("Vidutinė kaina")
+
+plt.tight_layout()
+plt.show()
+```
+
+Iš pateiktų grafikų matyti, kad išskirčių yra tiek tarp dyzelinių, tiek tarp benzininių automobilių. Duomenyse didžiąją dalį sudaro benzininiai varikliai, kurių yra 783, o dyzelinių gerokai mažiau - 188. Taip pat yra pora hibridų, varomų banzinu arba dujomis. Akivaizdžiai matosi, kad dyzelinu varomi automobiliai yra vidutiniškai brangesni, lyginant su kitomis dviejomis kategorijomis. Kadangi hibridinių automobilių tik 2, jie taip pat varomi benzinu ir kainos vidurkis panašus į automobilių varomų tik benzinu, tai šios dvi grupės sujungtos.
+
+```{r include=FALSE}
+data <- data %>% 
+  mutate(fuel_type = case_when(
+    fuel == "diesel" ~ "diesel",
+    fuel %in% c("petrol", "petrol+cng") ~ "petrol+"
+  ))
+```
+
+```{python eval=FALSE, include=FALSE}
+data["fuel_type"] = np.where(
+    data["fuel"] == "diesel", "diesel",
+    np.where(data["fuel"].isin(["petrol", "petrol+cng"]), "petrol+", data["fuel"])
+)
+```
+
+\newpage
+
+## Degalų bako talpa
+
+```{r echo=FALSE, fig.height=3, fig.width=6, fig.cap="Degalų bako talpos histograma"}
+ggplot(data, aes(x = tank_capacity)) +
+  geom_histogram(bins = 20,
+                 fill = "lightblue", alpha = 0.85, color = "cyan4") +
+  labs(x = "Talpa", y = "Dažnis") +
+  scale_x_continuous(breaks = seq(0, 70, by = 5)) +
+  theme_bw()
+```
+
+\FloatBarrier
+
+```{python eval=FALSE, include=FALSE}
+plt.figure(figsize=(8,5))
+plt.hist(data["tank_capacity"], bins=23, color="lightblue", edgecolor="blue", density=False) 
+plt.xlabel("Talpa")
+plt.ylabel("Dažnis")
+plt.grid(linestyle='--', alpha=0.6)
+plt.tight_layout()
+plt.show()
+```
+
+\FloatBarrier
+
+```{r echo=FALSE, tab.cap="Degalų bako talpos skaitinės charakteristikos"}
+tank_capacity_stats <- numeric_var_outliers(data %>% mutate(tank_capacity = as.numeric(as.character(tank_capacity))), "tank_capacity")
+
+tank_capacity_table <- data.frame(Kintamasis = "Degalų bako talpa") %>% cbind(tank_capacity_stats)
+
+kable(tank_capacity_table)
+```
+
+```{python eval=FALSE, include=FALSE}
+tank_capacity_stats = numeric_var_outliers(data, 'tank_capacity')
+
+tank_capacity_table = pd.DataFrame({'Kintamasis': ['Degalų bako talpa']})
+tank_capacity_table = pd.concat([tank_capacity_table, tank_capacity_stats], axis=1)
+
+print(tabulate(tank_capacity_table, headers='keys', tablefmt='github', showindex=False))
+
+```
+
+Iš pateikto grafiko matoma, jog duomenų rinkinyje esančių automobilių degalų bakų talpa yra pasiskirsčiusi tarp 15 ir 70 litrų. Dauguma automobilių degalų bakų talpos yra sutelktos tarp 35 ir 48 litrų. Didžiausias pikas pastebimas ties 42 l, t. y. daugiausia automobilių turi apie 42 litrų degalų bakus.
+
+```{r echo=FALSE, fig.cap="Ryšys tarp degalų bako talpos ir kainos", fig.height=2.5, fig.width=4.5, message=FALSE, warning=FALSE}
+corr_bako_talpa
+```
+
+\FloatBarrier
+
+```{python eval=FALSE, include=FALSE}
+plt.figure(figsize=(8,5))
+sns.regplot(data=data, x="tank_capacity", y="price", scatter_kws={"alpha":0.5, "color":"lightblue"}, line_kws={"color":"darkred"})
+plt.xlabel("Bako talpa")
+plt.ylabel("Kaina")
+plt.grid(linestyle='--', alpha=0.6)
+plt.tight_layout()
+plt.show()
+```
+
+\FloatBarrier
+
+Iš pateiktos sklaidos diagramos matoma, jog yra tam tikras teigiamas ryšys tarp automobilių kainos ir degalų bako talpos.
+
+\newpage
+
+## Variklio darbinis tūris
+
+```{r echo=FALSE, fig.height=3, fig.width=6, fig.cap="Variklio darbinio tūrio histograma"}
+ggplot(data, aes(x = cc_displacement)) +
+  geom_histogram(bins = 20,
+                 fill = "lightblue", alpha = 0.85, color = "cyan4") +
+  labs(x = "Darbinis tūris", y = "Dažnis") +
+  scale_x_continuous(breaks = seq(600, 2200, by = 500)) +
+  theme_bw()
+```
+
+\FloatBarrier
+
+```{python eval=FALSE, include=FALSE}
+plt.figure(figsize=(8,5))
+plt.hist(data["cc_displacement"], bins=20, color="lightblue", edgecolor="blue", density=False) 
+plt.xlabel("Darbinis tūris")
+plt.ylabel("Tankis")
+plt.grid(linestyle='--', alpha=0.6)
+plt.tight_layout()
+plt.show()
+```
+
+```{r echo=FALSE, tab.cap="Variklio darbinio tūrio skaitinės charakteristikos"}
+cc_displacement_stats <- numeric_var_outliers(data %>% mutate(cc_displacement = as.numeric(as.character(cc_displacement))), "cc_displacement")
+
+cc_displacement_table <- data.frame(Kintamasis = "Variklio darbinis tūris") %>% cbind(cc_displacement_stats)
+
+kable(cc_displacement_table)
+```
+
+```{python eval=FALSE, include=FALSE}
+cc_displacement_stats = numeric_var_outliers(data, 'cc_displacement')
+
+cc_displacement_table = pd.DataFrame({'Kintamasis': ['Variklio darbinis tūris']})
+cc_displacement_table = pd.concat([cc_displacement_table, cc_displacement_stats], axis=1)
+
+print(tabulate(cc_displacement_table, headers='keys', tablefmt='github', showindex=False))
+
+```
+
+Iš histogramos bei skaitinių charakteristikų lentelės matoma, jog turimuose duomenyse variklio tūris yra pasiskirstęs tarp 624 ir 2179 $\text{cm}^3$. Dominuoja automobiliai su vidutinio dydžio variklių tūriais (apie 1200 $\text{cm}^3$), o labai maži ar labai dideli varikliai pasitaiko rečiau.
+
+```{r echo=FALSE, fig.cap="Ryšys tarp variklio darbinio tūrio ir kainos", fig.height=2.5, fig.width=4.5, message=FALSE, warning=FALSE}
+corr_turis
+```
+
+\FloatBarrier
+
+```{python eval=FALSE, include=FALSE}
+plt.figure(figsize=(8,5))
+sns.regplot(data=data, x="cc_displacement", y="price", scatter_kws={"alpha":0.5, "color":"lightblue"}, line_kws={"color":"darkred"})
+plt.xlabel("Bako talpa")
+plt.ylabel("Kaina")
+plt.grid(linestyle='--', alpha=0.6)
+plt.tight_layout()
+plt.show()
+```
+
+Sklaidos diagramoje pastebimas tam tikras teigiamas ryšys tarp automobilio kainos ir variklio darbinio tūrio.
+
+\newpage
+
+## Variklio sukimo momentas
+
+```{r echo=FALSE, fig.height=3, fig.width=6, fig.cap="Variklio sukimo momento histograma"}
+ggplot(data, aes(x = torque)) +
+  geom_histogram(bins = 20,
+                 fill = "lightblue", alpha = 0.85, color = "cyan4") +
+  labs(x = "Sukimo momentas", y = "Dažnis") +
+  scale_x_continuous(breaks = seq(30, 400, by = 30)) +
+  theme_bw()
+
+```
+
+\FloatBarrier
+
+```{python eval=FALSE, include=FALSE}
+plt.figure(figsize=(8,5))
+plt.hist(data["torque"], bins=20, color="lightblue", edgecolor="blue", density=False) 
+plt.xlabel("Sukimo momentas")
+plt.ylabel("Tankis")
+plt.grid(linestyle='--', alpha=0.6)
+plt.tight_layout()
+plt.show()
+```
+
+```{r echo=FALSE, tab.cap="Variklio sukimo momento skaitinės charakteristikos"}
+torque_stats <- numeric_var_outliers(data %>% mutate(torque = as.numeric(as.character(torque))), "torque")
+
+torque_table <- data.frame(Kintamasis = "Variklio sukimo momentas") %>% cbind(torque_stats)
+
+kable(torque_table)
+```
+
+```{python eval=FALSE, include=FALSE}
+torque_stats = numeric_var_outliers(data, 'torque')
+
+torque_table = pd.DataFrame({'Kintamasis': ['Variklio sukimo momentas']})
+torque_table = pd.concat([torque_table, torque_stats], axis=1)
+
+print(tabulate(torque_table, headers='keys', tablefmt='github', showindex=False))
+
+```
+
+Histograma pavaizduotas turimų automobilių variklių sukimo momento pasiskirstymas. Šis kintamasis įgyja reikšmes tarp 48 ir 380 Nm. Dauguma automobilių turi palyginti mažesnes sukimo momento reikšmes.
+
+```{r echo=FALSE, fig.cap="Ryšys tarp variklio darbinio tūrio ir kainos", fig.height=2.5, fig.width=4.5, message=FALSE, warning=FALSE}
+corr_sukimo_momentas
+```
+
+\FloatBarrier
+
+```{python eval=FALSE, include=FALSE}
+plt.figure(figsize=(8,5))
+sns.regplot(data=data, x="torque", y="price", scatter_kws={"alpha":0.5, "color":"lightblue"}, line_kws={"color":"darkred"})
+plt.xlabel("Sukimo momentas")
+plt.ylabel("Kaina")
+plt.grid(linestyle='--', alpha=0.6)
+plt.tight_layout()
+plt.show()
+```
+
+Sklaidos diagrama parodo, jog egzistuoja teigiamas tiesinis ryšys tarp automobilio kainos ir variklio sukimo momento.
+
+\newpage
+
+## Emisijos
+
+```{r echo=FALSE, fig.height=3, fig.width=5.5, fig.cap="Emisijų normų pasiskirstymas"}
+em <- data %>% 
+  count(emission) %>% 
+  ggplot(aes(x = emission, y = n, fill = emission)) +
+  geom_col(width = 0.6) + 
+  geom_text(aes(label = n), vjust = -0.4) +
+  labs(x = "Emisijų normos", y = "Automobilių skaičius") +
+  scale_y_continuous(limits = c(0, 610),
+                     breaks = seq(0, 610, by = 100)) +
+  theme_bw() +
+  theme(legend.position = "none")
+em
+```
+
+\FloatBarrier
+
+Šiame duomenų rinkinyje emisijos yra apibendrinamos emisijų normomis (BS - Bharat Stage). Indijos Bharato etapo išmetamųjų teršalų standartai yra vyriausybės įgyventinti reglamentai, skirti apriboti oro teršalų išmetimą iš motorinių transporto priemonių [@emission_norms]. Kuo aukštesnė BS norma, tuo griežtesni taršos ribojimo reikalavimui automobilių gamintojams.
+
+Stulpelinėje diagramoje pavaizduotas automobilių skaičius pagal emisijų normą. Matyti, kad didžiausią dalį sudaro automobiliai, atitinkantys BS IV standartą. BS III automobilių yra mažiausiai.
+
+```{r echo=FALSE, fig.height=3, fig.width=5.5, fig.cap="Emisijų normų pasiskirstymas pagal kainą"}
+emission_plot2 <- ggplot(data, aes(x = emission, y = price, fill = emission)) +
+  geom_boxplot() +
+  labs(x = "Emisijų norma", y = "Kaina") +
+  theme_bw() +
+  ylim(2500, 40000) +
+  theme(legend.position = "none")
+
+avg_price_emission <- data %>% 
+  group_by(emission) %>% 
+  summarise(mean = mean(price), sd = sd(price))
+
+emission_plot3 <- ggplot(avg_price_emission, aes(x = emission, y = mean)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean-sd, ymax = mean+sd), width=.4) +
+  theme_bw() +
+  ylim(2500, 40000) +
+  labs(x = "Emisijų norma", y = "Vidutinė kaina")
+
+(emission_plot2 + emission_plot3)
+```
+
+\FloatBarrier
+
+```{python eval=FALSE, include=FALSE}
+plt.figure(figsize=(10, 9))
+
+e1 = plt.subplot2grid((3, 2), (0, 0), colspan=2)
+bars = sns.countplot(data=data, x="emission", palette= ggplot2_colors, edgecolor="black")
+for container in bars.containers:
+    e1.bar_label(container, fmt='%d', label_type='edge', padding=3)
+e1.set_xlabel("Emisijų normos")
+e1.set_ylabel("Automobilių skaičius")
+e1.grid(linestyle='--', alpha=0.6)
+e1.set_ylim(0, e1.get_ylim()[1] + 50)
+
+               
+e2 = plt.subplot2grid((3, 2), (1, 0), rowspan=2)
+sns.boxplot(data=data, x="emission", y="price", palette= ggplot2_colors, linewidth=1.2, fliersize=2.5)
+e2.set_xlabel("Emisijų norma")
+e2.set_ylabel("Kaina")
+e2.grid(linestyle='--', alpha=0.6)
+
+avg_price_emission = (data.groupby('emission', as_index=False).agg(mean=('price', 'mean'), sd=('price', 'std')))
+
+e3 = plt.subplot2grid((3, 2), (1, 1), rowspan=2)
+e3.errorbar(x=avg_price_emission['emission'], y=avg_price_emission['mean'], yerr=avg_price_emission['sd'], fmt='o', ecolor='black', capsize=4, elinewidth=1, color='black')
+e3.set_xlabel("Spalva")
+e3.set_ylabel("Vidutinė kaina")
+e3.grid(linestyle='--', alpha=0.6)
+
+common_ylim = [min(e2.get_ylim()[0], e3.get_ylim()[0]),
+               max(e2.get_ylim()[1], e3.get_ylim()[1])]
+
+e2.set_ylim(common_ylim)
+e3.set_ylim(common_ylim)
+
+plt.tight_layout()
+plt.show()
+
+```
+
+Šie grafikai rodo automobilių kainų skirtumus pagal emisijų normą. Stačiakampė diagrama parodo, kad BS III automobilių kainos yra mažesnės ir labiau susitelkusios ties žemesnėmis reikšmėmis, tuo tarpu BS IV ir BS V turi didesnę medianą ir platesnį kainų diapazoną. Tai reiškia, kad naujesni, mažiau taršūs automobiliai paprastai kainuoja daugiau. Vidurkių grafikas aiškiai parodo, kad BS IV automobilių kaina yra vidutiniškai didesnė nei likusiųjų kategorijų, tačiau jos reikšmių išsibarstymas yra didžiausias.
+
+```{r eval=FALSE, include=FALSE}
+numeric_var_char <- function(data, var) {
+  data %>% 
+    summarise(
+      Vidurkis = round(mean(.data[[var]]), 2),
+      `Stand. nuokr.` = round(sd(.data[[var]]), 2),
+      #SE = round(`Stand. nuokr.` / sqrt(length(.data[[var]])), 2),
+      CV = round(`Stand. nuokr.` / Vidurkis, 2),
+      Min = round(min(.data[[var]]), 2),
+      Max = round(max(.data[[var]]), 2)
+    ) %>% 
+    as.data.frame()
+}
+```
+
+```{python eval=FALSE, include=FALSE}
+def numeric_var_char(data, var):
+    val = data[var]
+    mean = round(val.mean(), 2)
+    std = round(val.std(), 2)
+    cv = round(std / mean, 2) if mean != 0 else np.nan
+    min_val = round(val.min(), 2)
+    max_val = round(val.max(), 2)
+    
+    return pd.DataFrame({
+        "Vidurkis": [mean],
+        "Stand. nuokr.": [std],
+        "CV": [cv],
+        "Min": [min_val],
+        "Max": [max_val]
+    })
+```
+
+```{r eval=FALSE, include=FALSE}
+numeric_var_outliers <- function(data, var) {
+  data %>% 
+    summarise(
+      išskirtys = length(boxplot(.data[[var]], plot=FALSE)$out),
+      #procentas = round(išskirtys / length(.data[[var]]), 2),
+      q10 = round(quantile(.data[[var]], 0.10), 2),
+      q25 = round(quantile(.data[[var]], 0.25), 2),
+      Mediana = round(median(.data[[var]]), 2),
+      q75 = round(quantile(.data[[var]], 0.75), 2),
+      q90 = round(quantile(.data[[var]], 0.90), 2)
+    ) %>% 
+    as.data.frame()
+}
+```
+
+```{python eval=FALSE, include=FALSE}
+def numeric_var_outliers(data, var):
+    val = data[var].dropna()
+    
+    q1 = val.quantile(0.25)
+    q3 = val.quantile(0.75)
+    iqr = q3 - q1
+    lower_bound = q1 - 1.5 * iqr
+    upper_bound = q3 + 1.5 * iqr
+    outliers_count = ((val < lower_bound) | (val > upper_bound)).sum()
+    
+    return pd.DataFrame({
+        "išskirtys": [outliers_count],
+        "Q10": [round(val.quantile(0.10), 2)],
+        "Q25": [round(q1, 2)],
+        "Mediana": [round(val.median(), 2)],
+        "Q75": [round(q3, 2)],
+        "Q90": [round(val.quantile(0.90), 2)]
+    })
+```
+
+\newpage
+
+## Pavarų skaičius
+
+```{r echo=FALSE, fig.height=4, fig.width=8, fig.cap="Automobilio kainos pasiskirstymas pagal pavarų skaičių"}
+ts1 <- data %>% 
+  count(transmission_speed) %>% 
+  ggplot(aes(x = transmission_speed, y = n, fill = transmission_speed)) +
+  geom_col(width = 0.6) + 
+  geom_text(aes(label = n), vjust = -0.5) +
+  labs(x = "Pavarų skaičius", y = "Automobilių skaičius") +
+  scale_y_continuous(limits = c(0, 800),
+                     breaks = seq(0, 800, by = 100)) +
+  theme_bw() +
+  theme(legend.position = "none")
+
+char_transmission_speed <- data %>% 
+  group_by(transmission_speed) %>% 
+  summarise(mean = mean(price),
+            sd = sd(price),
+            median = median(price))
+
+ts1
+
+ts2 <- data %>% 
+  ggplot(aes(x = transmission_speed, y = price, fill = transmission_speed)) +
+  geom_boxplot() +
+  labs(x = "Pavarų skaičius", y = "Kaina") +
+  scale_y_continuous(limits = c(0, 40000),
+                     breaks = seq(0, 40000, by = 10000)) +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.position = "none")
+
+
+ts3 <- char_transmission_speed %>% 
+  ggplot(aes(x = transmission_speed, y = mean,  group = 1)) +
+  geom_point(aes(colour = transmission_speed), size = 2.5) + 
+  geom_errorbar(aes(ymin = mean - sd, ymax = mean + sd), size = 0.5) +
+  labs(x = "Pavarų skaičius", y = "Vidutinė kaina") +
+  scale_y_continuous(limits = c(0, 40000),
+                     breaks = seq(0, 40000, by = 10000)) +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.position = "none")
+
+```
+
+\FloatBarrier
+
+Iš pateikto grafiko apie automobilio skaičiaus pasiskirstymą pagal pavarų skaičių, matyti, kad duomenų rinkinyje daugiausia yra automobilių su 5 pavaromis, šios rūšies automobilių yra 746. Toliau pagal automobilių skaičių yra 6 pavarų automobiliai, jų yra 169, o mažiausiai duomenų rinkinyje yra automobilių, turinčių bepakopę kintamą transmisiją (CVT - continuously variable transmission), jų yra tik tais 3 įrašai.
+
+\newpage
+
+```{r echo=FALSE, fig.height=4, fig.width=8, fig.cap="Automobilio kainos pasiskirstymas pagal pavarų skaičių"}
+ts2 + ts3
+```
+
+\FloatBarrier
+
+Iš aukščiau esančių grafikų, galime matyti automobilių kainos pokytį atsižvelgiant į pavarų skaičių, duomenų rinkinyje plačiausią kainų amplitudę įgyja 7 pavarų automobiliai, taip pat ši grupė pasižymi aukščiausiomis medianos bei vidutinės kainos reikšmėmis, atitinkamai 16734 ir 18318 eurų. Duomenų rinkinyje žemiausias kainos reikšmes įgyja 4 ir 5 pavarų automobiliai, abiejų šių grupių kainų pasiskirstymas yra panašus.
+
+```{python eval=FALSE, include=FALSE}
+count_transmission_speed = data["transmission_speed"].value_counts()
+
+order = ["4-Speed", "5-Speed", "6-Speed", "7-Speed", "CVT"] 
+count_transmission_speed = count_transmission_speed.reindex(order) 
+
+colors = ["red", "y", "green", "deepskyblue", "magenta"] 
+
+names_ts = list(count_transmission_speed.index) 
+count_ts = list(count_transmission_speed.values) 
+
+mean_ts = data.groupby(["transmission_speed"])["price"].mean() 
+std = data.groupby(["transmission_speed"])["price"].std()
+
+
+fig = plt.figure(figsize=(8,5))
+plot1 = plt.subplot2grid((2, 2), (0, 0), colspan=2)
+plot2 = plt.subplot2grid((2, 2), (1, 0))
+plot3 = plt.subplot2grid((2, 2), (1, 1))
+
+
+plot1.bar(names_ts, count_ts, color = colors)
+
+for i, value in enumerate(count_transmission_speed):
+    plot1.text(i, value + 5, str(value), ha='center')
+plot1.set_ylabel('Skaičius')
+plot1.grid(True) 
+
+
+sns.boxplot(x = "transmission_speed", y = "price", data = data, palette = colors, ax=plot2)
+plot2.set_ylabel("Kaina")
+plot2.set_xlabel("")
+plot2.set_xticklabels(plot2.get_xticklabels(), rotation=45)
+plot2.grid(True) 
+
+
+x = range(len(mean_ts))
+
+for i, (mean, err, color) in enumerate(zip(mean_ts.values, std.values, colors)):
+    plot3.errorbar(x = i, y = mean, yerr = err, color = color, fmt='o', ecolor = "black")
+
+plot3.set_xticks(ticks=x)
+plot3.set_xticklabels(labels=mean_ts.index, rotation=45)
+plot3.set_ylabel("Vidutinė kaina")
+plot3.grid(True) 
+
+
+fig.text(0.5, 0.01, "Pavarų skaičius", ha='center', fontsize=12)
+plt.tight_layout()
+plt.subplots_adjust(wspace=0.3) 
+plt.show()
+
+```
+
+\FloatBarrier
+
+Kadangi dvi kategorijos, 7 pavarų ir bepakopė kintama transmisija, turi labai mažai duomenų įrašų, jų tolimesniuose žingsniuose nebūtų tikslinga naudoti, todėl šis kategorinis kintamasis suskirstomas į naujas grupes.
+
+```{r include=FALSE}
+data <- data %>% 
+  mutate(transmission_speed_group = case_when(
+    transmission_speed %in% c("7-Speed", "CVT") ~ "others",
+    TRUE ~ transmission_speed
+  ))
+
+table(data$transmission_speed_group)
+```
+
+| Pavarų dėžės tipas | Dažnis |
+|--------------------|--------|
+| 4-Speed            | 39     |
+| 5-Speed            | 746    |
+| 6-Speed            | 169    |
+| Kiti               | 19     |
+
+: Automobilių skaičius pagal pavarų dežės tipą
+
+```{python eval=FALSE, include=FALSE}
+data['transmission_speed_group'] = np.where(
+    data['transmission_speed'].isin(['7-Speed', 'CVT']),
+    'others',
+    data['transmission_speed']
+)
+
+print(data['transmission_speed_group'].value_counts())
+```
+
+\newpage
+
+## Pavarų dėžės tipas
+
+```{r echo=FALSE, fig.height=3, fig.width=7, fig.cap="Automobilio skaičiaus pasiskirstymas pagal pavarų dėžės tipą"}
+tt1 <- data %>% 
+  count(transmission_type) %>% 
+  ggplot(aes(x = transmission_type, y = n, fill = transmission_type)) +
+  geom_col(width = 0.6) + 
+  geom_text(aes(label = n), vjust = -0.5) +
+  labs(x = "Pavarų dėžės tipas", y = "Automobilių skaičius") +
+  scale_y_continuous(limits = c(0, 800),
+                     breaks = seq(0, 800, by = 100)) +
+  theme_bw() +
+  theme(legend.position = "none")
+
+tt1
+
+char_transmission_type <- data %>% 
+  group_by(transmission_type) %>% 
+  summarise(mean = mean(price),
+            sd = sd(price),
+            median = median(price))
+
+tt2 <- data %>% 
+  ggplot(aes(x = transmission_type, y = price, fill = transmission_type)) +
+  geom_boxplot() +
+  labs(x = "Pavarų dėžės tipas", y = "Kaina") +
+  scale_y_continuous(limits = c(0, 40000),
+                     breaks = seq(0, 40000, by = 10000)) +
+  theme_bw() +
+  theme(legend.position = "none")
+
+tt3 <- char_transmission_type %>% 
+  ggplot(aes(x = transmission_type, y = mean,  group = 1)) +
+  geom_point(aes(colour = transmission_type), size = 2.5) + 
+  geom_errorbar(aes(ymin = mean - sd, ymax = mean + sd), size = 0.5) +
+  scale_y_continuous(limits = c(0, 40000),
+                     breaks = seq(0, 40000, by = 10000)) +
+  labs(x = "Pavarų dėžės tipas", y = "Vidutinė kaina") +
+  theme_bw() +
+  theme(legend.position = "none")
+
+```
+
+\FloatBarrier
+
+Aukščiau pateiktame grafike matyti, kad duomenų rinkinyje yra pateikti du pavarų dėžės tipai, automatinė, kurios įrašų yra 262, ir mechaninė, kurios duomenų yra daugiausia - 711.
+
+```{r echo=FALSE, fig.height=3, fig.width=8, fig.cap="Automobilio kainos pasiskirstymas pagal pavarų dėžės tipą"}
+tt2 + tt3
+```
+
+\FloatBarrier
+
+Analizuojant kainų pasiskirstymą pagal pavarų dėžės tipą, galime matyti, kad automobiliai su automatine pavarų dėže įgyją panašias ir aukštesnes kainos reikšmes nei automobiliai su mechanine pavarų dėže. Be to, ši grupė pasižymi ir aukščiausiomis medianos bei vidutinės kainos reikšmėmis.
+
+```{python eval=FALSE, include=FALSE}
+
+count_transmission_type = data["transmission_type"].value_counts()
+
+order = ["Automatic", "Manual"] 
+count_transmission_type = count_transmission_type.reindex(order) 
+
+names_ts = list(count_transmission_type.index) 
+count_ts = list(count_transmission_type.values) 
+
+colors = ["violet", "deepskyblue"]
+
+mean_tt = data.groupby(["transmission_type"])["price"].mean() 
+std_tt = data.groupby(["transmission_type"])["price"].std()
+
+
+fig = plt.figure(figsize=(8,5))
+plot1 = plt.subplot2grid((2, 2), (0, 0), colspan=2)
+plot2 = plt.subplot2grid((2, 2), (1, 0))
+plot3 = plt.subplot2grid((2, 2), (1, 1))
+
+
+plot1.bar(names_ts, count_ts, color = colors)
+
+for i, value in enumerate(count_transmission_type):
+    plot1.text(i, value + 5, str(value), ha='center')
+
+plot1.set_ylabel('Skaičius')
+plot1.grid(True) 
+
+
+sns.boxplot(x = "transmission_type", y = "price", data = data, palette = colors, ax=plot2)
+plot2.set_ylabel("Kaina")
+plot2.set_xlabel("")
+plot2.set_xticklabels(plot2.get_xticklabels(), rotation=45)
+plot2.grid(True) 
+
+
+x = range(len(mean_tt))
+
+for i, (mean, err, color) in enumerate(zip(mean_tt.values, std_tt.values, colors)):
+    plot3.errorbar(x = i, y = mean, yerr = err, color = color, fmt='o', ecolor = "black")
+
+plot3.set_xticks(ticks = x)
+plot3.set_xticklabels(labels=mean_tt.index, rotation=45)
+plot3.set_xlim(-0.7, len(mean_tt) - 0.7)
+plot3.set_ylabel("Vidutinė kaina")
+plot3.grid(True) 
+
+
+fig.text(0.5, 0.01, "Pavarų dėžės tipas", ha = 'center', fontsize = 12)
+
+plt.tight_layout()
+plt.show()
+plt.subplots_adjust(wspace = 0.3)
+```
+
+\FloatBarrier
+
+\newpage
+
+## Variklio galingumas (arklio galios)
+
+```{r echo=FALSE, fig.height=2.5, fig.width=6, fig.cap="Variklio galingumas (arklio galios) histograma"}
+bhp_mean <- mean(data$bhp)
+bhp_median <- median(data$bhp)
+
+data %>% ggplot(aes(x = bhp)) + 
+  geom_histogram(bins = 30, fill = "lightblue",
+                     color = "cyan4", alpha = 0.85) +
+  labs(x = "Variklio galingumas (arklio galios)", y = "Dažnis") +
+  scale_x_continuous(breaks = seq(20, 200, by = 15)) +
+  theme_bw() +
+  theme(plot.subtitle = element_text(hjust = 0.5, size = 14))
+```
+
+```{python eval=FALSE, include=FALSE}
+sns.histplot(data = data, x = "bhp", bins = 30, stat = "density", color = "lightskyblue", edgecolor = "teal")
+plt.ylabel("Tankis")
+plt.xlabel("Variklio galingumas (arklio galios)")
+```
+
+\FloatBarrier
+
+Iš aukščiau pateikto grafiko matyti, kad duomenų rinkinyje yra didelė automobilių su skirtingomis arklio galiomis (AG) įvairovė, nuo 34 iki 177 AG. Tačiau dažniausiai duomenų rinkinyje pasitaikiusios reikšmės yra tarp 80 ir 90 AG. Duomenų rinkinio mediana lygi 83,8, tai rodo, kad pusė automobilių turi mažiau arklio galių nei 83,8 AG. Vidutinė reikšmė lygi 91,35 AG (su 25,75 standartiniu nuokrypiu).
+
+```{r echo=FALSE, tab.cap="Variklio galingumo skaitinės charakteristikos"}
+bhp_stats <- numeric_var_outliers(data, "bhp")
+bhp_table <- data.frame(Kintamasis = "Variklio galingumas") %>% cbind(bhp_stats)
+kable(bhp_table)
+```
+
+```{r echo=FALSE, fig.cap="Ryšys tarp variklio galingumo ir kainos (Box-Cox)", fig.height=2, fig.width=4.5, fig.align='center',  message=FALSE, warning=FALSE}
+corr_galia
+```
+
+\FloatBarrier
+
+Iš sklaidos grafiko matyti, kad tarp kainos, transformuotos Box-Cox metodu, ir variklio galingumo yra stiprus teigiamas ryšys - automobiliai, turintis didesnį variklio galingumą, yra brangesni.
+
+```{python eval=FALSE, include=FALSE}
+sns.regplot(x = "bhp", y = "price", data = data, scatter_kws = {'color':'lightskyblue', 'alpha':0.5}, line_kws = {'color':'red', 'linewidth':1})
+plt.ylabel("Kaina")
+plt.xlabel("Stabdžių arklio galios")
+```
+
+\FloatBarrier
+
+\newpage
+
+## Vidutinės kuro sąnaudos
+
+```{r echo=FALSE, fig.height=2.5, fig.width=6, fig.cap="Automobilių vidutinių kuro sąnaudų histograma"}
+fe_mean <- mean(data$fuel_economy)
+fe_median <- median(data$fuel_economy)
+
+data %>% ggplot(aes(x = fuel_economy)) + 
+  geom_histogram(bins = 30, fill = "lightblue", color = "cyan4", alpha = 0.85) +
+  labs(x = "Vidutinės kurosąnaudos", y = "Dažnis") +
+  scale_x_continuous(breaks = seq(5, 35, by = 2)) +
+  theme_bw() +
+  theme(plot.subtitle = element_text(hjust = 0.5, size = 14))
+
+```
+
+```{python eval=FALSE, include=FALSE}
+sns.histplot(data = data, x = "fuel_economy", bins = 30, stat = "density", color = "lightskyblue", edgecolor = "teal")
+plt.ylabel("Tankis")
+plt.xlabel("Vidutinės kuro sąnaudos")
+```
+
+\FloatBarrier
+
+Grafike matyti, kad vidutinės kuro sąnaudos pasiskirsčiusios intervale nuo 10,40 iki 31,19 km/l. Dažniausiai pasitaikiusios vidutinės kuro sąnaudų reikšmės yra tarp 18 ir 19 km/l. Puse duomenų rinkinio automobilių kuro sąnaudos įgyją reikšmes nuo 17,41 iki 21,01 km/l. Vidutinė kuro sąnaudų reikšmė lygi 19,51 km/l (su 2,68 standartiniu nuokrypiu).
+
+```{r echo=FALSE, tab.cap="Vidutinių kuro sąnaudu skaitinės charakteristikos"}
+fe_stats <- numeric_var_outliers(data, "fuel_economy")
+fe_table <- data.frame(Kintamasis = "Vidutinės kuro sąnaudos") %>% cbind(bhp_stats)
+kable(fe_table)
+```
+
+```{r echo=FALSE, fig.cap="Ryšys tarp automobilių vidutinių kuro sąnaudų ir kainos (Box-COx)", fig.height=2, fig.width=4.5, fig.align='center',  message=FALSE, warning=FALSE}
+corr_kuro_sanaudos
+```
+
+\FloatBarrier
+
+Iš aukščiau pateikto grafiko matyti, kad egzistuoja silpnas neigiamas ryšys tarp kainos, transformuotos Box-Cox metodu, ir automobilio kuro sąnaudų. Kuo autombilis pasižymi mažesnėmis kuro sąnaudomis, tuo jo kaina yra didesnė.
+
+```{python eval=FALSE, include=FALSE}
+sns.regplot(x = "fuel_economy", y = "price", data = data, scatter_kws = {'color':'lightskyblue', 'alpha':0.5}, line_kws = {'color':'red', 'linewidth':1})
+plt.ylabel("Kaina")
+plt.xlabel("Vidutinės kuro sąnaudos")
+```
+
+\FloatBarrier
+
+\newpage
+
+## Koreliacija
+
+```{r cor_matrix, echo=FALSE, message=FALSE, warning=FALSE}
+lower_plots <- function(data, mapping, ...) {
+  ggplot(data = data, mapping = mapping) +
+    geom_point(color = "lightblue", size = 1.15, alpha = 0.5) +
+    geom_smooth(method = "lm", color = "maroon", linewidth = 0.3) +
+    theme_bw()
+}
+
+diag_plot <- function(data, mapping, ...){
+  ggplot(data = data, mapping = mapping) + 
+  geom_histogram(aes(y=..density..), color="cyan4",fill = "lightblue") +
+    theme_bw()
+}
+
+ggpairs(data, 
+        columns = c("mileage", "tank_capacity", "cc_displacement",
+                    "bhp", "torque", "fuel_economy", "price"),
+        diag = list(continuous = diag_plot),
+        lower = list(continuous = wrap(lower_plots)),
+        upper = list(continuous = wrap("cor", method = "spearman"))) +
+  theme(
+    strip.text.y.right = element_text(angle = -25),
+    axis.text.x = element_blank(),
+    axis.text.y = element_blank(),
+    axis.ticks = element_blank())
+```
+
+```{python eval=FALSE, include=FALSE}
+corr_data = data[["mileage", "tank_capacity", "cc_displacement", "bhp", "torque", "fuel_economy", "price"]]
+
+def corrdot(*args, **kwargs):
+    corr_r = args[0].corr(args[1], 'spearman')
+    corr_text = f"{corr_r:2.2f}".replace("0.", ".")
+    ax = plt.gca()
+    ax.set_axis_off()
+    marker_size = abs(corr_r) * 10000
+    ax.scatter([.5], [.5], marker_size, [corr_r], alpha=0.6, cmap="coolwarm",
+               vmin=-1, vmax=1, transform=ax.transAxes)
+    font_size = abs(corr_r) * 40 + 5
+    ax.annotate(corr_text, [.5, .5,],  xycoords="axes fraction",
+                ha='center', va='center', fontsize=font_size)
+
+
+g = sns.PairGrid(corr_data, aspect=1.4, diag_sharey=False)
+g.map_lower(sns.regplot, ci=False, line_kws={'color': 'red'}, scatter_kws = {'color':'lightskyblue', 'alpha':0.5})
+g.map_diag(sns.histplot, kde=False, color='lightskyblue', edgecolor="teal")
+g.map_upper(corrdot)
+```
+
+\FloatBarrier
+
+Iš aukščiau pateikto grafiko matosi, kad kainos ryšys yra stirpus su kuro bako talpa ($r = 0,587$), variklio tūriu ($r = 0,624$), galia ($r = 0,792$) ir sukimo momentu ($r = 0,750$). Neigiami ryšiai silpnesi, kainos su rida $r = -0,189$, su kuro sanaudomis $r = -0,324$. Kadangi vertintas Spearmano koreliacijos koeficientas, tai įverčiai tokie patys ir su Box-Cox kaina.
+
+Paskaičiavus Spearmano dalinės koreliacijos koeficientus, pastebėta, kad mažiausiai koreliavęs kintamasis dabar įgyja didžiausią koreliacjos koeficientą ($r = -0,52$). Kiti ryšiai - teigiami ir silpni, išskyrus galią ($r = 0,36$).
+
+```{r include=FALSE}
+pcor(data[c("mileage", "tank_capacity", "cc_displacement", "bhp", "torque", "fuel_economy", "price_bc")], method = "spearman")
+```
+
+```{python eval=FALSE, include=FALSE}
+cols = ["mileage", "tank_capacity", "cc_displacement", "bhp", "torque", "fuel_economy", "price_bc"]
+subset = data[cols]
+
+pcorr_matrix = pg.pcorr(subset, method='spearman')
+
+print(pcorr_matrix)
+```
+
+| Kintamasis              | r     |
+|-------------------------|-------|
+| Rida                    | -0.52 |
+| Kuro bako talpa, L      | 0.09  |
+| Variklio darbinis tūris | 0.10  |
+| BHP                     | 0.36  |
+| Sukimo momentas, Nm     | 0.19  |
+| Kuro sąnaudos, km/L     | 0.09  |
+
+: Dalinė koreliacija tarp automobilių kainos ir techninių rodiklių
+
+\newpage
+
+# Kelių kintamųjų regresija
+
+## Duomenų paruošimas
+
+Prieš vykdant optimalaus tiesinio modelio paiešką atlikome kelis duomenų paruošimo žingsnius. Pašalinome automobilį, kurio atsako kintamojo reikšmė pasižymėjo kaip ypač stipri išskirtis. Taip pat panaikinome automobilius (4), kurie buvo pagaminti Čekijos Respublikoje, nes kitaip nebūtume galėję taikyti gamintojo valstybės kintamojo. Analizėje anksčiau buvo pašalinti 2 automobiliai, kurie vieninteliai turėjo 4 ir 6 sėdimas vietas.
+
+```{r include=FALSE}
+data = data[-12, ]
+
+data = data %>% 
+  filter(manufacturer_country != "Czech Republic")
+```
+
+```{python eval=FALSE, include=FALSE}
+data = data.drop(index=11)
+
+data = data[data['manufacturer_country'] != "Czech Republic"]
+```
+
+```{r include=FALSE}
+data = data %>% filter(seating_capacity != 4 & seating_capacity != 6)
+
+data <- data %>%
+  mutate(seating_capacity_group = case_when(
+    seating_capacity == 5 ~ "5",
+    seating_capacity %in% c(7, 8) ~ "7+"
+  ))
+```
+
+```{python eval=FALSE, include=FALSE}
+data = data[(data['seating_capacity'] != 4) & (data['seating_capacity'] != 6)]
+
+data['seating_capacity_group'] = np.where(
+    data['seating_capacity'] == 5, '5',
+    np.where(data['seating_capacity'].isin([7, 8]), '7+', np.nan)
+)
+```
+
+Turimas duomenų rinkinys buvo padalintas į mokymo ir testavimo aibes, kur mokymo aibė sudaro 70 % duomenų, o testavimo aibė - 30 %. Padalinę duomenis į dvi nepersidengiančias aibes galėsime įvertinti modelio tikslumą nematytiems duomenims. Kadangi duomenų rinkinyje turime tik 900+ stebinių ir nemažai kintamųjų, sluoksninio ėmimo netaikėme. Stebinių į anksčiau minėtas duomenų aibes buvo atrinkti paprastuoju atsitiktiniu (negrąžintiniu) ėmimu.
+
+Tolimesniame darbe regresijos modelis buvo kuriamas naudojant mokymo duomenų rinkinį, o jo tikslumas vertintas naudojant testavimo duomenų aibę.
+
+```{r include=FALSE}
+train_indices <- sample(seq_len(nrow(data)), size = 0.7 * nrow(data))
+
+train_data <- data[train_indices, ]
+test_data  <- data[-train_indices, ]
+```
+
+```{python eval=FALSE, include=FALSE}
+train_indices = np.random.choice(data.index, size=int(0.7 * len(data)), replace=False)
+
+train_data = data.loc[train_indices]
+test_data = data.drop(train_indices)
+```
