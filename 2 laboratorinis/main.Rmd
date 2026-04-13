@@ -22,6 +22,11 @@ ggplot(data=data, mapping=aes(x=age))+
         geom_boxplot()
 ```
 
+```{r}
+ggplot(data=data, mapping=aes(x=age, y=bmi))+
+        geom_point()
+```
+
 
 ```{r}
 ggplot(data=data, mapping=aes(x=sex))+
@@ -64,7 +69,7 @@ test_data <- data[-train_index, ]
 
 
 ```{r}
-model <- rq(charges ~ ., data=train_data, tau = 0.75)
+model <- rq(charges ~ . + smoker*bmi, data=train_data, tau = 0.75)
 ```
 
 ```{r}
@@ -85,5 +90,27 @@ plot(summary(model), par='bmi')
 ```{r}
 plot(summary(model), par='children')
 ```
+```{r}
+pred <- predict(model, newdata = test_data)
+actual <- test_data$charges
+```
 
+```{r}
+mae <- mean(abs(actual - pred))
+mae
+```
+
+```{r}
+rmse <- sqrt(mean((actual - pred)^2))
+rmse
+```
+
+```{r}
+# Quantile loss
+tau <- 0.75
+loss <- mean(ifelse(actual >= pred,
+                    tau * (actual - pred),
+                    (1 - tau) * (pred - actual)))
+loss
+```
 
