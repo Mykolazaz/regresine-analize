@@ -34,6 +34,14 @@ ggplot(data=data, mapping=aes(x=age, y=charges))+
 ### Lytis
 
 ```{r}
+table(data$sex)
+```
+
+```{r}
+prop.table(table(data$sex))
+```
+
+```{r}
 ggplot(data=data, mapping=aes(x=sex, fill=sex))+
         geom_bar() +
         scale_fill_manual(values = c("pink", "lightblue"))
@@ -61,6 +69,14 @@ ggplot(data=data, mapping=aes(x=bmi, y=charges))+
 ### Vaikų skaičius
 
 ```{r}
+table(factor(data$children))
+```
+
+```{r}
+prop.table(table(factor(data$children)))
+```
+
+```{r}
 ggplot(data = data, aes(x = factor(children))) +
   geom_bar()
 ```
@@ -74,6 +90,14 @@ ggplot(data=data, mapping=aes(x=factor(children), y=charges))+
 ### Rūkymo statusas
 
 ```{r}
+table(data$smoker)
+```
+
+```{r}
+prop.table(table(data$smoker))
+```
+
+```{r}
 ggplot(data=data, mapping=aes(x=smoker)) +
         geom_bar()
 ```
@@ -85,6 +109,15 @@ ggplot(data=data, mapping=aes(x=smoker, y=charges)) +
 ```
 
 ### Regionas
+
+```{r}
+table(data$region)
+```
+
+```{r}
+prop.table(table(data$region))
+```
+
 
 ```{r}
 ggplot(data=data, mapping=aes(x=region)) +
@@ -191,13 +224,17 @@ loss <- mean(ifelse(actual >= pred,
 loss
 ```
 
+
+
 ```{r}
 fit0 <- rq(charges~1,tau=0.75,data=train_data)
-# fit1 <- rq(charges~.,tau=0.75,data=data)
 
 rho <- function(u,tau=.5)u*(tau - (u < 0))
-# R1 <- 1 - fit1$rho/fit0$rho
-R1 <- 1 - model3$rho/fit0$rho
+
+R1 <- 1 - model1$rho/fit0$rho
+R2 <- 1 - model3$rho/fit0$rho
+
 R1
+R2
 ```
 
