@@ -46,13 +46,14 @@ ggplot(data = data, mapping = aes(x = charges)) +
   theme_minimal() +
   theme(
     plot.title = element_text(hjust = 0.5, size = 16),
-    axis.title.x = element_text(size = 14),
+    axis.title.x = element_text(size = 16),
+    axis.title.y = element_text(size = 16),
     axis.text.x = element_blank(),
     axis.text.y = element_blank(),
     axis.ticks.y = element_blank()
   ) +
   coord_flip()
-ggsave("kainos_boxplot.png", width = 6, height = 4, bg = "white")
+ggsave("kainos_boxplot.png", width = 6, height = 6, bg = "white")
 ```
 
 ```{axis.title.x = element_text(size=14),}
