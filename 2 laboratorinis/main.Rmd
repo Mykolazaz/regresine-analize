@@ -37,7 +37,25 @@ ggplot(data=data, mapping=aes(x=charges))+
   theme(
     plot.title = element_text(hjust = 0.5, size = 16),
     axis.title.y = element_text(size=14), 
-    axis.title.x = element_text(size=14),
+```
+
+```{r}
+ggplot(data = data, mapping = aes(x = charges)) +
+  geom_boxplot(fill = "mediumseagreen", alpha = 0.8, color = "black") +
+  labs(x = "Gydymo kaina (tūkst. JAV dolerių)", y = "") +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 16),
+    axis.title.x = element_text(size = 14),
+    axis.text.x = element_blank(),
+    axis.text.y = element_blank(),
+    axis.ticks.y = element_blank()
+  ) +
+  coord_flip()
+ggsave("kainos_boxplot.png", width = 6, height = 4, bg = "white")
+```
+
+```{axis.title.x = element_text(size=14),}
     axis.text.x = element_text(size=14), 
     axis.text.y = element_text(size=14)
   )
