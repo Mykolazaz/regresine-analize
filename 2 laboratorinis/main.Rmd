@@ -21,11 +21,27 @@ data
 
 ## Pagrindiniai kintamieji
 
+### Gydymo kaina
+
+```{r}
+ggplot(data=data, mapping=aes(x=charges))+
+        geom_histogram()
+```
+
+```{r}
+length(boxplot(data$charges, plot=FALSE)$out)
+```
+
+
 ### Amžius
 
 ```{r}
 ggplot(data=data, mapping=aes(x=age))+
         geom_boxplot()
+```
+
+```{r}
+length(boxplot(data$age, plot=FALSE)$out)
 ```
 
 ```{r}
@@ -61,6 +77,10 @@ ggplot(data = data, aes(x = sex, y = charges, fill = sex)) +
 ```{r}
 ggplot(data = data, aes(x = bmi)) +
   geom_histogram()
+```
+
+```{r}
+length(boxplot(data$bmi, plot=FALSE)$out)
 ```
 
 ```{r}
@@ -182,7 +202,7 @@ summary(model3)
 ```
 
 ```{r}
-model0 <- rq(charges ~ ., tau = seq(0.1, 0.9, by = 0.1), data = data)
+model0 <- rq(charges ~ ., tau = seq(0.1, 0.9, by = 0.05), data = data)
 
 plot(summary(model0), par='age')
 ```
