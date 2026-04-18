@@ -13,15 +13,12 @@ library(tidyverse)
 ```
 
 ```{r}
-data <- read_csv("insurance.
+data <- read_csv("insurance.csv")
 ```
 
 ```{r}
 data <- data %>% 
   mutate(charges = charges/1000)
-```
-
-```{csv")}
 ```
 
 ```{r}
