@@ -7,6 +7,8 @@ output: html_document
 library(readr)
 library(quantreg)
 library(ggplot2)
+library(corrplot)
+library(car)
 ```
 
 ```{r}
@@ -133,8 +135,6 @@ ggplot(data=data, mapping=aes(x=region, y=charges)) +
 ### Koreliacijų matrica
 
 ```{r}
-library(corrplot)
-
 cor_matrix <- cor(data[, c("age", "bmi", "children", "charges")], method="spearman")
 
 corrplot(cor_matrix, method="square", type = "lower")
@@ -144,8 +144,6 @@ corrplot(cor_matrix, method="square", type = "lower")
 ## Multikolinearumo tikrinimas
 
 ```{r}
-library(car)
-
 vif(lm(charges ~ ., data = data))
 ```
 
