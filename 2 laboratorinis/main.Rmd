@@ -37,6 +37,12 @@ ggplot(data=data, mapping=aes(x=charges))+
   theme(
     plot.title = element_text(hjust = 0.5, size = 16),
     axis.title.y = element_text(size=14), 
+    axis.title.x = element_text(size=14),
+    axis.text.x = element_text(size=14), 
+    axis.text.y = element_text(size=14)
+  )
+
+ggsave("kainos_histograma.png", width =6, height=6, bg = "white")
 ```
 
 ```{r}
@@ -45,23 +51,19 @@ ggplot(data = data, mapping = aes(x = charges)) +
   labs(x = "Gydymo kaina (tūkst. JAV dolerių)", y = "") +
   theme_minimal() +
   theme(
-    plot.title = element_text(hjust = 0.5, size = 16),
-    axis.title.x = element_text(size = 16),
-    axis.title.y = element_text(size = 16),
+    plot.title = element_text(hjust = 0.5, size = 14),
+    axis.title.x = element_text(size = 14),
+    axis.title.y = element_text(size = 14),
     axis.text.x = element_blank(),
-    axis.text.y = element_blank(),
-    axis.ticks.y = element_blank()
+    axis.ticks.x = element_blank(),
+    axis.text.y = element_text(size = 14)
   ) +
   coord_flip()
 ggsave("kainos_boxplot.png", width = 6, height = 6, bg = "white")
 ```
 
-```{axis.title.x = element_text(size=14),}
-    axis.text.x = element_text(size=14), 
-    axis.text.y = element_text(size=14)
-  )
-
-ggsave("kainos_histograma.png", width =6, height=6, bg = "white")
+```{r}
+length(boxplot(data$charges)$out)
 ```
 
 ```{r}
