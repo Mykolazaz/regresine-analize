@@ -9,10 +9,19 @@ library(quantreg)
 library(ggplot2)
 library(corrplot)
 library(car)
+library(tidyverse)
 ```
 
 ```{r}
-data <- read_csv("insurance.csv")
+data <- read_csv("insurance.
+```
+
+```{r}
+data <- data %>% 
+  mutate(charges = charges/1000)
+```
+
+```{csv")}
 ```
 
 ```{r}
@@ -25,19 +34,44 @@ data
 
 ```{r}
 ggplot(data=data, mapping=aes(x=charges))+
-        geom_histogram()
+  geom_histogram(fill = "mediumseagreen", bins = 30, alpha = 0.8) +
+  labs(x="Gydymo kaina (tūkst. JAV dolerių)", y="Dažnis")+
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 16),
+    axis.title.y = element_text(size=14), 
+    axis.title.x = element_text(size=14),
+    axis.text.x = element_text(size=14), 
+    axis.text.y = element_text(size=14)
+  )
+
+ggsave("kainos_histograma.png", width =6, height=6, bg = "white")
 ```
 
 ```{r}
 length(boxplot(data$charges, plot=FALSE)$out)
 ```
 
-
 ### Amžius
 
 ```{r}
 ggplot(data=data, mapping=aes(x=age))+
-        geom_boxplot()
+  geom_boxplot(
+    fill = "slateblue",
+    alpha = 0.8) +
+  labs(x="Amžius") +
+  theme_minimal() +
+  coord_flip() +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 16),
+    axis.title.y = element_text(size=14), 
+    axis.title.x = element_text(size=14),
+    axis.text.y = element_text(size=14),
+    axis.ticks.x = element_blank(),
+    axis.text.x = element_blank()
+  )
+
+ggsave("amziaus_boxplot.png", width = 6, height = 6, bg = "white")
 ```
 
 ```{r}
@@ -46,7 +80,22 @@ length(boxplot(data$age, plot=FALSE)$out)
 
 ```{r}
 ggplot(data=data, mapping=aes(x=age, y=charges))+
-        geom_point()
+  geom_point(
+    color = "blue",
+    alpha = 0.6,
+    size = 1.5
+  ) +
+  labs(x = "Amžius", y = "Gydymo kaina (tūkst. JAV dolerių)") +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 16),
+    axis.title.y = element_text(size=14), 
+    axis.title.x = element_text(size=14),
+    axis.text.x = element_text(size=14), 
+    axis.text.y = element_text(size=14)
+  )
+
+ggsave("kaina_amzius_scatter.png", height = 6, width = 6, bg = "white")
 ```
 
 ### Lytis
@@ -61,22 +110,71 @@ prop.table(table(data$sex))
 
 ```{r}
 ggplot(data=data, mapping=aes(x=sex, fill=sex))+
-        geom_bar() +
-        scale_fill_manual(values = c("pink", "lightblue"))
+  geom_bar() +
+  scale_fill_manual(
+    values = c("female" = "pink", "male" = "lightblue"),
+    labels = c("female" = "Moteris", "male" = "Vyras")
+  ) +
+  scale_x_discrete(labels = c("female" = "Moteris", "male" = "Vyras")) +
+  scale_y_continuous(breaks = seq(0, 1000, by = 50)) +
+  labs(x="Lytis", y="Dažnis", fill="Lytis") +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 16)
+  )
+
+ggsave("lytis_pasiskistymas.png", height = 6, width = 6, bg ="white")
 ```
 
 ```{r}
 ggplot(data = data, aes(x = sex, y = charges, fill = sex)) +
-  geom_violin(alpha = 0.6) +
-  geom_boxplot(width = 0.1, fill = "white") +
-  scale_fill_manual(values = c("pink", "lightblue"))
+  geom_violin(alpha = 0.6, color = NA) +
+  geom_boxplot(width = 0.1) +
+  scale_fill_manual(values = c("female" = "salmon", "male" = "steelblue")) +
+  scale_x_discrete(labels = c("female" = "Moteris", "male" = "Vyras")) +
+  scale_y_continuous(breaks = seq(0, 80, by = 5)) +
+  labs(x = NULL, y="Gydymo kaina (tūkst. JAV dolerių)") +
+  theme_minimal() +
+  theme(legend.position = "none", axis.title.y = element_text(size=14), 
+        axis.text.x = element_text(size=14), axis.text.y = element_text(size=14))
+
+ggsave("violin_charges_sex.png", width = 6, height = 5, bg = "white")
 ```
 
 ### KMI
 
 ```{r}
 ggplot(data = data, aes(x = bmi)) +
-  geom_histogram()
+  geom_histogram(fill = "steelblue", alpha = 0.85, bins = 30) +
+  labs(x = "KMI", y = "Dažnis") +
+  scale_y_continuous(breaks = seq(0, 120, by = 10)) +
+  theme_minimal() +
+  theme(
+    axis.title.x = element_text(size = 14),
+    axis.title.y = element_text(size = 14),
+    axis.text.x  = element_text(size = 12),
+    axis.text.y  = element_text(size = 12)
+  )
+```
+
+```{r}
+ggplot(data=data, mapping=aes(x=bmi))+
+  geom_boxplot(
+    fill = "steelblue",
+    alpha = 0.8) +
+  labs(x="KMI") +
+  theme_minimal() +
+  coord_flip() +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 16),
+    axis.title.y = element_text(size=14), 
+    axis.title.x = element_text(size=14),
+    axis.text.y = element_text(size=14),
+    axis.ticks.x = element_blank(),
+    axis.text.x = element_blank()
+  )
+
+ggsave("bmi_boxplot.png", width = 6, height = 6, bg = "white")
 ```
 
 ```{r}
@@ -85,10 +183,36 @@ length(boxplot(data$bmi, plot=FALSE)$out)
 
 ```{r}
 ggplot(data=data, mapping=aes(x=bmi, y=charges))+
-        geom_point()
+  geom_point(
+    color = "steelblue",
+    alpha = 0.8,
+    size = 1.5
+  ) +
+  labs(x="KMI", y="Gydymo kaina (tūkst. JAV dolerių)") +
+  theme_minimal() +
+  theme(
+    axis.title.y = element_text(size=14), 
+    axis.title.x = element_text(size=14),
+    axis.text.x = element_text(size=12), 
+    axis.text.y = element_text(size=12)
+  )
+
+ggsave("bmi_charges_scatter.png", height = 6, width = 6, bg = "white")
 ```
 
 ### Vaikų skaičius
+
+```{r}
+#data <- data %>%
+#  mutate(children = case_when(
+#    children == 0 ~ "0",
+#    children == 1 ~ "1",
+#    children == 2 ~ "2",
+#    children >= 3 ~ "3+"
+#  ))
+
+#bandėme grupuoti, tačiau rezultatai MAE, RSME, loss gavosi prastesni
+```
 
 ```{r}
 table(factor(data$children))
@@ -99,14 +223,20 @@ prop.table(table(factor(data$children)))
 ```
 
 ```{r}
-ggplot(data = data, aes(x = factor(children))) +
-  geom_bar()
-```
-
-```{r}
 ggplot(data=data, mapping=aes(x=factor(children), y=charges))+
-        geom_violin() +
-        geom_boxplot(width=0.1)
+  geom_violin(fill = "mediumpurple", alpha = 0.6, color = NA) +
+  geom_boxplot(width = 0.1, fill = "mediumpurple") +
+  labs(x="Vaikų skaičius", y="Gydymo kaina (tūkst. JAV dolerių)") +
+  scale_y_continuous(breaks = seq(0, 80, by = 10)) +
+  theme_minimal() +
+  theme(
+    axis.title.y = element_text(size=14), 
+    axis.title.x = element_text(size=14),
+    axis.text.x = element_text(size=12), 
+    axis.text.y = element_text(size=12)
+  )
+
+ggsave("vaikai_charges_violin.png", height = 6, width = 6, bg = "white")
 ```
 
 ### Rūkymo statusas
@@ -120,14 +250,22 @@ prop.table(table(data$smoker))
 ```
 
 ```{r}
-ggplot(data=data, mapping=aes(x=smoker)) +
-        geom_bar()
-```
+ggplot(data=data, mapping=aes(x=smoker, y=charges, fill=smoker))+
+  geom_violin(alpha = 0.6, color = NA) +
+  geom_boxplot(width = 0.1) +
+  scale_fill_manual(values = c("yes" = "mediumseagreen", "no" = "indianred")) +
+  scale_x_discrete(labels = c("yes" = "Rūko", "no" = "Nerūko")) +
+  scale_y_continuous(breaks = seq(0, 80, by = 10)) +
+  labs(x = NULL, y = "Gydymo kaina (tūkst. JAV dolerių)") +
+  theme_minimal() +
+  theme(
+    legend.position = "none",
+    axis.title.y = element_text(size=14), 
+    axis.text.x = element_text(size=12), 
+    axis.text.y = element_text(size=12)
+  )
 
-```{r}
-ggplot(data=data, mapping=aes(x=smoker, y=charges)) +
-        geom_violin() +
-        geom_boxplot(width=0.1)
+ggsave("rukymas_charges_violin.png", height = 6, width = 6, bg = "white")
 ```
 
 ### Regionas
@@ -140,26 +278,66 @@ table(data$region)
 prop.table(table(data$region))
 ```
 
-
 ```{r}
-ggplot(data=data, mapping=aes(x=region)) +
-        geom_bar()
+ggplot(data=data, mapping=aes(x=region))+
+  geom_bar(fill = "darkorange", alpha = 0.8) +
+  scale_x_discrete(labels = c(
+    "northeast" = "Šiaurės rytai",
+    "northwest" = "Šiaurės vakarai",
+    "southeast" = "Pietų rytai",
+    "southwest" = "Pietų vakarai"
+  )) +
+  scale_y_continuous(breaks = seq(0, 400, by = 50)) +
+  labs(x = NULL, y = "Dažnis") +
+  theme_minimal() +
+  theme(
+    axis.title.y = element_text(size=14), 
+    axis.text.x = element_text(size=12), 
+    axis.text.y = element_text(size=12)
+  )
+
+ggsave("regionai_bar.png", height = 6, width = 6, bg = "white")
 ```
 
 ```{r}
-ggplot(data=data, mapping=aes(x=region, y=charges)) +
-        geom_violin() +
-        geom_boxplot(width=0.1)
+ggplot(data=data, mapping=aes(x=region, y=charges))+
+  geom_violin(fill = "darkorange", alpha = 0.6, color = NA) +
+  geom_boxplot(width = 0.1, fill = "darkorange", alpha = 0.8) +
+  scale_x_discrete(labels = c(
+    "northeast" = "Šiaurės rytai",
+    "northwest" = "Šiaurės vakarai",
+    "southeast" = "Pietų rytai",
+    "southwest" = "Pietų vakarai"
+  )) +
+  scale_y_continuous(breaks = seq(0, 80, by = 10)) +
+  labs(x = NULL, y = "Gydymo kaina (tūkst. JAV dolerių)") +
+  theme_minimal() +
+  theme(
+    axis.title.y = element_text(size=14), 
+    axis.text.x = element_text(size=12), 
+    axis.text.y = element_text(size=12)
+  )
+
+ggsave("regionai_charges_violin.png", height = 6, width = 6, bg = "white")
 ```
 
 ### Koreliacijų matrica
 
 ```{r}
 cor_matrix <- cor(data[, c("age", "bmi", "children", "charges")], method="spearman")
+colnames(cor_matrix) <- rownames(cor_matrix) <- c("Amžius", "KMI", "Vaikai", "Gydymo kaina")
 
-corrplot(cor_matrix, method="square", type = "lower")
+png("koreliacijos.png", width = 6, height = 6, units = "in", res = 300)
+corrplot(cor_matrix, method="square", type="lower",
+  cl.pos = "r",
+  tl.col = "black"
+)
+dev.off()
+corrplot(cor_matrix, method="square", type="lower",
+  cl.pos = "r",
+  tl.col = "black"
+)
 ```
-
 
 ## Multikolinearumo tikrinimas
 
@@ -242,8 +420,6 @@ loss <- mean(ifelse(actual >= pred,
 loss
 ```
 
-
-
 ```{r}
 fit0 <- rq(charges~1,tau=0.75,data=train_data)
 
@@ -255,4 +431,3 @@ R2 <- 1 - model3$rho/fit0$rho
 R1
 R2
 ```
-
