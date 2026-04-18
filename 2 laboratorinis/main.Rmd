@@ -210,6 +210,10 @@ ggsave("bmi_boxplot.png", width = 6, height = 6, bg = "white")
 ```
 
 ```{r}
+cor(data$charges, data$bmi, method = "spearman")
+```
+
+```{r}
 length(boxplot(data$bmi, plot=FALSE)$out)
 ```
 
@@ -271,6 +275,11 @@ ggplot(data=data, mapping=aes(x=factor(children), y=charges))+
 ggsave("vaikai_charges_violin.png", height = 6, width = 6, bg = "white")
 ```
 
+```{r}
+tapply(data$charges, data$children, summary)
+tapply(data$charges, data$children, sd)
+```
+
 ### Rūkymo statusas
 
 ```{r}
@@ -282,7 +291,9 @@ prop.table(table(data$smoker))
 ```
 
 ```{r}
-ggplot(data=data, mapping=aes(x=smoker, y=charges, fill=smoker))+
+data$smoker <- factor(data$smoker, levels = c("yes", "no"))
+
+ggplot(data = data, aes(x = smoker, y = charges, fill = smoker)) +
   geom_violin(alpha = 0.6, color = NA) +
   geom_boxplot(width = 0.1) +
   scale_fill_manual(values = c("yes" = "mediumseagreen", "no" = "indianred")) +
@@ -292,12 +303,17 @@ ggplot(data=data, mapping=aes(x=smoker, y=charges, fill=smoker))+
   theme_minimal() +
   theme(
     legend.position = "none",
-    axis.title.y = element_text(size=14), 
-    axis.text.x = element_text(size=12), 
-    axis.text.y = element_text(size=12)
+    axis.title.y = element_text(size = 14), 
+    axis.text.x = element_text(size = 12), 
+    axis.text.y = element_text(size = 12)
   )
 
 ggsave("rukymas_charges_violin.png", height = 6, width = 6, bg = "white")
+```
+
+```{r}
+tapply(data$charges, data$smoker, summary)
+tapply(data$charges, data$smoker, sd)
 ```
 
 ### Regionas
@@ -351,6 +367,11 @@ ggplot(data=data, mapping=aes(x=region, y=charges))+
   )
 
 ggsave("regionai_charges_violin.png", height = 6, width = 6, bg = "white")
+```
+
+```{r}
+tapply(data$charges, data$region, summary)
+tapply(data$charges, data$region, sd)
 ```
 
 ### Koreliacijų matrica
