@@ -34,14 +34,16 @@ ggplot(data=data, mapping=aes(x=age, y=charges))+
 ### Lytis
 
 ```{r}
-ggplot(data=data, mapping=aes(x=sex))+
-        geom_bar()
+ggplot(data=data, mapping=aes(x=sex, fill=sex))+
+        geom_bar() +
+        scale_fill_manual(values = c("pink", "lightblue"))
 ```
 
 ```{r}
-ggplot(data=data, mapping=aes(x=sex, y=charges))+
-        geom_violin() +
-        geom_boxplot(width=0.1)
+ggplot(data = data, aes(x = sex, y = charges, fill = sex)) +
+  geom_violin(alpha = 0.6) +
+  geom_boxplot(width = 0.1, fill = "white") +
+  scale_fill_manual(values = c("pink", "lightblue"))
 ```
 
 ### KMI
@@ -122,9 +124,10 @@ train_data <- data[train_index, ]
 test_data <- data[-train_index, ]
 ```
 
+## Modelio tobulinimas
 
 ```{r}
-model1 <- rq(charges ~ ., data=train_data, tau = 0.75)
+model1 <- rq(charges ~ ., data=data, tau = 0.75)
 ```
 
 ```{r}
@@ -132,7 +135,7 @@ summary(model1)
 ```
 
 ```{r}
-model2 <- rq(charges ~ . + age*bmi, data=train_data, tau = 0.75)
+model2 <- rq(charges ~ . + age*bmi, data=data, tau = 0.75)
 ```
 
 ```{r}
@@ -140,7 +143,7 @@ summary(model2)
 ```
 
 ```{r}
-model3 <- rq(charges ~ . + age*bmi + smoker*bmi, data=train_data, tau = 0.75)
+model3 <- rq(charges ~ . + age*bmi + smoker*bmi, data=data, tau = 0.75)
 ```
 
 ```{r}
@@ -161,7 +164,10 @@ plot(summary(model0), par='bmi')
 plot(summary(model0), par='children')
 ```
 
+## Modelio tinkamumas
+
 ```{r}
+model3 <- rq(charges ~ . + age*bmi + smoker*bmi, data=train_data, tau = 0.75)
 pred <- predict(model3, newdata = test_data)
 actual <- test_data$charges
 ```
@@ -186,7 +192,7 @@ loss
 ```
 
 ```{r}
-fit0 <- rq(charges~1,tau=0.75,data=data)
+fit0 <- rq(charges~1,tau=0.75,data=train_data)
 # fit1 <- rq(charges~.,tau=0.75,data=data)
 
 rho <- function(u,tau=.5)u*(tau - (u < 0))
