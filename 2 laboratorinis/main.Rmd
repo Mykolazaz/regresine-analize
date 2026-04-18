@@ -104,7 +104,7 @@ length(boxplot(data$age, plot=FALSE)$out)
 ```{r}
 ggplot(data=data, mapping=aes(x=age, y=charges))+
   geom_point(
-    color = "blue",
+    color = "slateblue",
     alpha = 0.6,
     size = 1.5
   ) +
@@ -119,6 +119,10 @@ ggplot(data=data, mapping=aes(x=age, y=charges))+
   )
 
 ggsave("kaina_amzius_scatter.png", height = 6, width = 6, bg = "white")
+```
+
+```{r}
+cor(data$charges, data$age, method = "spearman")
 ```
 
 ### Lytis
@@ -162,6 +166,11 @@ ggplot(data = data, aes(x = sex, y = charges, fill = sex)) +
         axis.text.x = element_text(size=14), axis.text.y = element_text(size=14))
 
 ggsave("violin_charges_sex.png", width = 6, height = 5, bg = "white")
+```
+
+```{r}
+tapply(data$charges, data$sex, summary)
+tapply(data$charges, data$sex, sd)
 ```
 
 ### KMI
