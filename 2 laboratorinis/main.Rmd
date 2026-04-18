@@ -19,27 +19,44 @@ data
 
 ## Pagrindiniai kintamieji
 
+### Amžius
+
 ```{r}
 ggplot(data=data, mapping=aes(x=age))+
         geom_boxplot()
 ```
 
+```{r}
+ggplot(data=data, mapping=aes(x=age, y=charges))+
+        geom_point()
+```
+
+### Lytis
 
 ```{r}
 ggplot(data=data, mapping=aes(x=sex))+
         geom_bar()
 ```
+
+```{r}
+ggplot(data=data, mapping=aes(x=sex, y=charges))+
+        geom_violin() +
+        geom_boxplot(width=0.1)
+```
+
+### KMI
 
 ```{r}
 ggplot(data = data, aes(x = bmi)) +
   geom_histogram()
 ```
 
-
 ```{r}
-ggplot(data=data, mapping=aes(x=sex))+
-        geom_bar()
+ggplot(data=data, mapping=aes(x=bmi, y=charges))+
+        geom_point()
 ```
+
+### Vaikų skaičius
 
 ```{r}
 ggplot(data = data, aes(x = factor(children))) +
@@ -47,14 +64,38 @@ ggplot(data = data, aes(x = factor(children))) +
 ```
 
 ```{r}
+ggplot(data=data, mapping=aes(x=factor(children), y=charges))+
+        geom_violin() +
+        geom_boxplot(width=0.1)
+```
+
+### Rūkymo statusas
+
+```{r}
 ggplot(data=data, mapping=aes(x=smoker)) +
         geom_bar()
 ```
 
 ```{r}
+ggplot(data=data, mapping=aes(x=smoker, y=charges)) +
+        geom_violin() +
+        geom_boxplot(width=0.1)
+```
+
+### Regionas
+
+```{r}
 ggplot(data=data, mapping=aes(x=region)) +
         geom_bar()
 ```
+
+```{r}
+ggplot(data=data, mapping=aes(x=region, y=charges)) +
+        geom_violin() +
+        geom_boxplot(width=0.1)
+```
+
+### Koreliacijų matrica
 
 ```{r}
 library(corrplot)
