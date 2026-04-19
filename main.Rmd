@@ -589,14 +589,23 @@ BIC(adult_logit_1)
 ```
 
 ```{r}
-anova(adult_logit_1, glm(income ~ . - region, data = train, family = binomial(link = "logit"))
-, test = "Chisq")
+model_no_region <- glm(income ~ . - region,
+                       data = train,
+                       family = binomial(link = "logit"))
 
-anova(adult_logit_1, glm(income ~ . - workclass_grp, data = train, family = binomial(link = "logit"))
-, test = "Chisq")
+model_no_workclass <- glm(income ~ . - workclass_grp,
+                          data = train,
+                          family = binomial(link = "logit"))
 
-anova(adult_logit_1, glm(income ~ . - race, data = train, family = binomial(link = "logit"))
-, test = "Chisq")
+model_no_race <- glm(income ~ . - race,
+                     data = train,
+                     family = binomial(link = "logit"))
+
+anova(model_no_region, adult_logit_1, test = "Chisq")
+
+anova(model_no_workclass, adult_logit_1, test = "Chisq")
+
+anova(model_no_race, adult_logit_1, test = "Chisq")
 ```
 
 ```{r, fig.width=9, fig.height=6}
@@ -700,14 +709,23 @@ summary(adult_probit)
 ```
 
 ```{r}
-anova(adult_probit, glm(income ~ . - region, data = train, family = binomial(link = "probit"))
-, test = "Chisq")
+model_no_region <- glm(income ~ . - region,
+                       data = train,
+                       family = binomial(link = "probit"))
 
-anova(adult_probit, glm(income ~ . - workclass_grp, data = train, family = binomial(link = "probit"))
-, test = "Chisq")
+model_no_workclass <- glm(income ~ . - workclass_grp,
+                          data = train,
+                          family = binomial(link = "probit"))
 
-anova(adult_probit, glm(income ~ . - race, data = train, family = binomial(link = "probit"))
-, test = "Chisq")
+model_no_race <- glm(income ~ . - race,
+                     data = train,
+                     family = binomial(link = "probit"))
+
+anova(model_no_region, adult_probit, test = "Chisq")
+
+anova(model_no_workclass, adult_probit, test = "Chisq")
+
+anova(model_no_race, adult_probit, test = "Chisq")
 ```
 
 ```{r}
@@ -799,10 +817,23 @@ summary(adult_cloglog)
 ```
 
 ```{r}
+model_no_region <- glm(income ~ . - region,
+                       data = train,
+                       family = binomial(link = "cloglog"))
 
-anova(adult_cloglog, glm(income ~ . - region, data = train, family = binomial(link = "cloglog")),test = "Chisq")
-anova(adult_cloglog, glm(income ~ . - workclass_grp, data = train, family = binomial(link = "cloglog")),test = "Chisq")
-anova(adult_cloglog, glm(income ~ . -race, data = train, family = binomial(link = "cloglog")),test = "Chisq")
+model_no_workclass <- glm(income ~ . - workclass_grp,
+                          data = train,
+                          family = binomial(link = "cloglog"))
+
+model_no_race <- glm(income ~ . - race,
+                     data = train,
+                     family = binomial(link = "cloglog"))
+
+anova(model_no_region, adult_cloglog, test = "Chisq")
+
+anova(model_no_workclass, adult_cloglog, test = "Chisq")
+
+anova(model_no_race, adult_cloglog, test = "Chisq")
 ```
 
 ```{r, kuko matas}

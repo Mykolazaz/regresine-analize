@@ -13,15 +13,12 @@ library(tidyverse)
 ```
 
 ```{r}
-data <- read_csv("insurance.
+data <- read_csv("insurance.csv")
 ```
 
 ```{r}
 data <- data %>% 
   mutate(charges = charges/1000)
-```
-
-```{csv")}
 ```
 
 ```{r}
@@ -46,6 +43,32 @@ ggplot(data=data, mapping=aes(x=charges))+
   )
 
 ggsave("kainos_histograma.png", width =6, height=6, bg = "white")
+```
+
+```{r}
+ggplot(data = data, mapping = aes(x = charges)) +
+  geom_boxplot(fill = "mediumseagreen", alpha = 0.8, color = "black") +
+  labs(x = "Gydymo kaina (tūkst. JAV dolerių)", y = "") +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 14),
+    axis.title.x = element_text(size = 14),
+    axis.title.y = element_text(size = 14),
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank(),
+    axis.text.y = element_text(size = 14)
+  ) +
+  coord_flip()
+ggsave("kainos_boxplot.png", width = 6, height = 6, bg = "white")
+```
+
+```{r}
+summary(data$charges)
+sd(data$charges)
+```
+
+```{r}
+length(boxplot(data$charges)$out)
 ```
 
 ```{r}
@@ -81,7 +104,7 @@ length(boxplot(data$age, plot=FALSE)$out)
 ```{r}
 ggplot(data=data, mapping=aes(x=age, y=charges))+
   geom_point(
-    color = "blue",
+    color = "slateblue",
     alpha = 0.6,
     size = 1.5
   ) +
@@ -96,6 +119,10 @@ ggplot(data=data, mapping=aes(x=age, y=charges))+
   )
 
 ggsave("kaina_amzius_scatter.png", height = 6, width = 6, bg = "white")
+```
+
+```{r}
+cor(data$charges, data$age, method = "spearman")
 ```
 
 ### Lytis
@@ -141,6 +168,11 @@ ggplot(data = data, aes(x = sex, y = charges, fill = sex)) +
 ggsave("violin_charges_sex.png", width = 6, height = 5, bg = "white")
 ```
 
+```{r}
+tapply(data$charges, data$sex, summary)
+tapply(data$charges, data$sex, sd)
+```
+
 ### KMI
 
 ```{r}
@@ -175,6 +207,10 @@ ggplot(data=data, mapping=aes(x=bmi))+
   )
 
 ggsave("bmi_boxplot.png", width = 6, height = 6, bg = "white")
+```
+
+```{r}
+cor(data$charges, data$bmi, method = "spearman")
 ```
 
 ```{r}
@@ -239,6 +275,11 @@ ggplot(data=data, mapping=aes(x=factor(children), y=charges))+
 ggsave("vaikai_charges_violin.png", height = 6, width = 6, bg = "white")
 ```
 
+```{r}
+tapply(data$charges, data$children, summary)
+tapply(data$charges, data$children, sd)
+```
+
 ### Rūkymo statusas
 
 ```{r}
@@ -250,7 +291,9 @@ prop.table(table(data$smoker))
 ```
 
 ```{r}
-ggplot(data=data, mapping=aes(x=smoker, y=charges, fill=smoker))+
+data$smoker <- factor(data$smoker, levels = c("yes", "no"))
+
+ggplot(data = data, aes(x = smoker, y = charges, fill = smoker)) +
   geom_violin(alpha = 0.6, color = NA) +
   geom_boxplot(width = 0.1) +
   scale_fill_manual(values = c("yes" = "mediumseagreen", "no" = "indianred")) +
@@ -260,12 +303,17 @@ ggplot(data=data, mapping=aes(x=smoker, y=charges, fill=smoker))+
   theme_minimal() +
   theme(
     legend.position = "none",
-    axis.title.y = element_text(size=14), 
-    axis.text.x = element_text(size=12), 
-    axis.text.y = element_text(size=12)
+    axis.title.y = element_text(size = 14), 
+    axis.text.x = element_text(size = 12), 
+    axis.text.y = element_text(size = 12)
   )
 
 ggsave("rukymas_charges_violin.png", height = 6, width = 6, bg = "white")
+```
+
+```{r}
+tapply(data$charges, data$smoker, summary)
+tapply(data$charges, data$smoker, sd)
 ```
 
 ### Regionas
@@ -319,6 +367,11 @@ ggplot(data=data, mapping=aes(x=region, y=charges))+
   )
 
 ggsave("regionai_charges_violin.png", height = 6, width = 6, bg = "white")
+```
+
+```{r}
+tapply(data$charges, data$region, summary)
+tapply(data$charges, data$region, sd)
 ```
 
 ### Koreliacijų matrica
