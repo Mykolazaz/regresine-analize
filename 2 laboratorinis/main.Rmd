@@ -21,9 +21,7 @@ data <- data %>%
   mutate(charges = charges/1000)
 ```
 
-```{r}
-data
-```
+
 
 ## Pagrindiniai kintamieji
 
@@ -401,6 +399,13 @@ vif(lm(charges ~ ., data = data))
 ## Mokymo/testavimo aibė
 
 ```{r}
+data$smoker <- factor(data$smoker)
+data$smoker <- relevel(data$smoker, ref = "no")
+levels(data$smoker)
+contrasts(data$smoker)
+```
+```{r}
+set.seed(80085)
 train_index <- sample(1:nrow(data), size = 0.8 * nrow(data))
 train_data <- data[train_index, ]
 test_data <- data[-train_index, ]
@@ -409,7 +414,7 @@ test_data <- data[-train_index, ]
 ## Modelio tobulinimas
 
 ```{r}
-model1 <- rq(charges ~ ., data=data, tau = 0.75)
+model1 <- rq(charges ~ ., data=train_data, tau = 0.75)
 ```
 
 ```{r}
@@ -417,21 +422,33 @@ summary(model1)
 ```
 
 ```{r}
-model2 <- rq(charges ~ . + age*bmi, data=data, tau = 0.75)
+rq_confint_nid <- function(model, level = 0.95) {
+  s <- summary(model, se = "nid")
+  co <- s$coefficients
+  z <- qnorm(1 - (1 - level) / 2)
+
+  data.frame(
+    estimate = co[, 1],
+    se = co[, 2],
+    lower = co[, 1] - z * co[, 2],
+    upper = co[, 1] + z * co[, 2]
+  )
+}
+
+print(rq_confint_nid(model1))
 ```
 
 ```{r}
-summary(model2)
-```
-
-```{r}
-model3 <- rq(charges ~ . + age*bmi + smoker*bmi, data=data, tau = 0.75)
+model3 <- rq(charges ~ . + smoker*bmi, data=train_data, tau = 0.75)
 ```
 
 ```{r}
 summary(model3)
 ```
+```{r}
+print(rq_confint_nid(model3))
 
+```
 ```{r}
 model0 <- rq(charges ~ ., tau = seq(0.1, 0.9, by = 0.05), data = data)
 
@@ -449,20 +466,11 @@ plot(summary(model0), par='children')
 ## Modelio tinkamumas
 
 ```{r}
-model3 <- rq(charges ~ . + age*bmi + smoker*bmi, data=train_data, tau = 0.75)
+model3 <- rq(charges ~ .  + smoker*bmi, data=train_data, tau = 0.75)
 pred <- predict(model3, newdata = test_data)
 actual <- test_data$charges
 ```
 
-```{r}
-mae <- mean(abs(actual - pred))
-mae
-```
-
-```{r}
-rmse <- sqrt(mean((actual - pred)^2))
-rmse
-```
 
 ```{r}
 # Quantile loss
