@@ -409,7 +409,7 @@ test_data <- data[-train_index, ]
 ## Modelio tobulinimas
 
 ```{r}
-model1 <- rq(charges ~ ., data=data, tau = 0.75)
+model1 <- rq(charges ~ ., data=train_data, tau = 0.75)
 ```
 
 ```{r}
@@ -417,7 +417,7 @@ summary(model1)
 ```
 
 ```{r}
-model2 <- rq(charges ~ . + age*bmi, data=data, tau = 0.75)
+model2 <- rq(charges ~ . + age*bmi, data=train_data, tau = 0.75)
 ```
 
 ```{r}
@@ -425,7 +425,7 @@ summary(model2)
 ```
 
 ```{r}
-model3 <- rq(charges ~ . + age*bmi + smoker*bmi, data=data, tau = 0.75)
+model3 <- rq(charges ~ . + age*bmi + smoker*bmi, data=train_data, tau = 0.75)
 ```
 
 ```{r}
@@ -433,7 +433,7 @@ summary(model3)
 ```
 
 ```{r}
-model0 <- rq(charges ~ ., tau = seq(0.1, 0.9, by = 0.05), data = data)
+model0 <- rq(charges ~ ., tau = seq(0.1, 0.9, by = 0.05), data = train_data)
 
 plot(summary(model0), par='age')
 ```
@@ -449,7 +449,8 @@ plot(summary(model0), par='children')
 ## Modelio tinkamumas
 
 ```{r}
-model3 <- rq(charges ~ . + age*bmi + smoker*bmi, data=train_data, tau = 0.75)
+model3 <- rq(charges ~ . + smoker*bmi, data=train_data, tau = 0.75)
+summary(model3)
 pred <- predict(model3, newdata = test_data)
 actual <- test_data$charges
 ```
