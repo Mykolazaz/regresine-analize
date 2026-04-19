@@ -7,11 +7,14 @@ from statsmodels.formula.api import quantreg, ols
 from statsmodels.stats.outliers_influence import variance_inflation_factor
 import patsy
 
+
 # %%
 data = pd.read_csv("insurance.csv")
 
+
 # %%
 data["charges"] = data["charges"] / 1000
+
 
 # %%
 plt.figure()
@@ -23,6 +26,7 @@ plt.yticks(fontsize=14)
 plt.tight_layout()
 plt.show()
 
+
 # %%
 q1 = data["charges"].quantile(0.25)
 q3 = data["charges"].quantile(0.75)
@@ -31,6 +35,7 @@ lower = q1 - 1.5 * iqr
 upper = q3 + 1.5 * iqr
 charges_outliers = data[(data["charges"] < lower) | (data["charges"] > upper)]
 len(charges_outliers)
+
 
 # %%
 plt.figure()
@@ -41,6 +46,7 @@ plt.xticks([])
 plt.tight_layout()
 plt.show()
 
+
 # %%
 q1 = data["age"].quantile(0.25)
 q3 = data["age"].quantile(0.75)
@@ -49,6 +55,7 @@ lower = q1 - 1.5 * iqr
 upper = q3 + 1.5 * iqr
 age_outliers = data[(data["age"] < lower) | (data["age"] > upper)]
 len(age_outliers)
+
 
 # %%
 plt.figure()
@@ -61,11 +68,14 @@ plt.tight_layout()
 plt.savefig("kaina_amzius_scatter.png", dpi=300, bbox_inches="tight")
 plt.show()
 
+
 # %%
 data["sex"].value_counts()
 
+
 # %%
 data["sex"].value_counts(normalize=True)
+
 
 # %%
 sex_counts = data["sex"].value_counts().reindex(["female", "male"])
@@ -77,6 +87,7 @@ plt.ylabel("Dažnis")
 plt.yticks(np.arange(0, 1001, 50))
 plt.tight_layout()
 plt.show()
+
 
 # %%
 female_charges = data.loc[data["sex"] == "female", "charges"]
@@ -100,6 +111,7 @@ plt.yticks(np.arange(0, 81, 5), fontsize=14)
 plt.tight_layout()
 plt.show()
 
+
 # %%
 plt.figure()
 plt.hist(data["bmi"], bins=30, color="steelblue", alpha=0.85)
@@ -109,6 +121,7 @@ plt.yticks(np.arange(0, 121, 10), fontsize=12)
 plt.xticks(fontsize=12)
 plt.tight_layout()
 plt.show()
+
 
 # %%
 plt.figure()
@@ -120,6 +133,7 @@ plt.xticks([])
 plt.tight_layout()
 plt.show()
 
+
 # %%
 q1 = data["bmi"].quantile(0.25)
 q3 = data["bmi"].quantile(0.75)
@@ -128,6 +142,7 @@ lower = q1 - 1.5 * iqr
 upper = q3 + 1.5 * iqr
 bmi_outliers = data[(data["bmi"] < lower) | (data["bmi"] > upper)]
 len(bmi_outliers)
+
 
 # %%
 plt.figure()
@@ -140,11 +155,14 @@ plt.tight_layout()
 plt.savefig("bmi_charges_scatter.png", dpi=300, bbox_inches="tight")
 plt.show()
 
+
 # %%
 data["children"].astype("category").value_counts().sort_index()
 
+
 # %%
 data["children"].astype("category").value_counts(normalize=True).sort_index()
+
 
 # %%
 children_levels = sorted(data["children"].unique())
@@ -169,11 +187,14 @@ plt.tight_layout()
 plt.savefig("vaikai_charges_violin.png", dpi=300, bbox_inches="tight")
 plt.show()
 
+
 # %%
 data["smoker"].value_counts()
 
+
 # %%
 data["smoker"].value_counts(normalize=True)
+
 
 # %%
 smoker_yes = data.loc[data["smoker"] == "yes", "charges"]
@@ -195,11 +216,14 @@ plt.yticks(np.arange(0, 81, 10), fontsize=12)
 plt.tight_layout()
 plt.show()
 
+
 # %%
 data["region"].value_counts()
 
+
 # %%
 data["region"].value_counts(normalize=True)
+
 
 # %%
 region_order = ["northeast", "northwest", "southeast", "southwest"]
@@ -213,6 +237,7 @@ plt.yticks(np.arange(0, 401, 50), fontsize=12)
 plt.xticks(fontsize=12, rotation=0)
 plt.tight_layout()
 plt.show()
+
 
 # %%
 region_data = [data.loc[data["region"] == r, "charges"] for r in region_order]
@@ -235,6 +260,7 @@ plt.tight_layout()
 plt.savefig("regionai_charges_violin.png", dpi=300, bbox_inches="tight")
 plt.show()
 
+
 # %%
 q75 = data["charges"].quantile(0.75)
 
@@ -252,6 +278,7 @@ plt.title("Predicted 75th percentile of charges by BMI")
 plt.tight_layout()
 plt.show()
 
+
 # %%
 q75_region = (
     data.groupby("region", as_index=False)["charges"]
@@ -259,6 +286,7 @@ q75_region = (
     .rename(columns={"charges": "q75"})
 )
 q75_region
+
 
 # %%
 corr_matrix = data[["age", "bmi", "children", "charges"]].corr(method="spearman")
@@ -278,6 +306,7 @@ for i in range(corr_matrix.shape[0]):
 plt.tight_layout()
 plt.show()
 
+
 # %%
 X_num = data[["age", "bmi", "children"]].copy()
 X_num["intercept"] = 1
@@ -289,27 +318,35 @@ vif_data = pd.DataFrame({
 
 print(vif_data)
 
+
 # %%
 train_data = data.sample(frac=0.8, random_state=42)
 test_data = data.drop(train_data.index)
 
+
 # %%
 model1 = quantreg("charges ~ age + bmi + children + C(sex) + C(smoker) + C(region)", data).fit(q=0.75)
+
 
 # %%
 print(model1.summary())
 
+
 # %%
 model2 = quantreg("charges ~ age + bmi + children + C(sex) + C(smoker) + C(region) + age:bmi", data).fit(q=0.75)
+
 
 # %%
 print(model2.summary())
 
+
 # %%
 model3 = quantreg("charges ~ age + bmi + children + C(sex) + C(smoker) + C(region) + age:bmi + C(smoker):bmi", data).fit(q=0.75)
 
+
 # %%
 print(model3.summary())
+
 
 # %%
 taus = np.arange(0.1, 0.91, 0.05)
@@ -324,14 +361,16 @@ for tau in taus:
     coefs_bmi.append(m.params.get("bmi", np.nan))
     coefs_children.append(m.params.get("children", np.nan))
 
+
 # %%
 plt.figure()
 plt.plot(taus, coefs_age)
 plt.xlabel("Tau")
 plt.ylabel("age koeficientas")
 plt.yticks(np.arange(0.2, 0.32, 0.02))
-plt.title("Kvantilinės regresijos koeficientai: age")
+plt.title("age")
 plt.show()
+
 
 # %%
 plt.figure()
@@ -339,8 +378,9 @@ plt.plot(taus, coefs_bmi)
 plt.xlabel("Tau")
 plt.ylabel("bmi koeficientas")
 plt.yticks(np.arange(0, 0.61, 0.2))
-plt.title("Kvantilinės regresijos koeficientai: bmi")
+plt.title("bmi")
 plt.show()
+
 
 # %%
 plt.figure()
@@ -348,20 +388,17 @@ plt.plot(taus, coefs_children)
 plt.xlabel("Tau")
 plt.ylabel("children koeficientas")
 plt.yticks(np.arange(0, 1.1, 0.5))
-plt.title("Kvantilinės regresijos koeficientai: children")
+plt.title("children")
 plt.show()
+
 
 # %%
 fit0 = quantreg("charges ~ 1", train_data).fit(q=0.75)
 
-# Pastaba: statsmodels neturi tiesioginio $rho kaip R quantreg objekte,
-# todėl apskaičiuojame kvantilio nuostolį ranka.
 
-def rho(u, tau=0.5):
+def rho(u, tau=0.75):
     return u * (tau - (u < 0).astype(int))
 
-# model1 ir model3 čia turi būti perfitinti su train_data, jei norite visiškai
-# atkartoti R logiką lyginant su fit0 iš train_data:
 model1_train = quantreg("charges ~ age + bmi + children + C(sex) + C(smoker) + C(region)", train_data).fit(q=0.75)
 model3_train = quantreg("charges ~ age + bmi + children + C(sex) + C(smoker) + C(region) + age:bmi + C(smoker):bmi", train_data).fit(q=0.75)
 
@@ -374,16 +411,5 @@ R2 = 1 - rho_model3 / rho_fit0
 
 R1, R2
 
-# %%
-# %%
-data.groupby("sex").agg(
-    min=("charges", "min"),
-    q1=("charges", lambda x: x.quantile(0.25)),
-    median=("charges", "median"),
-    mean=("charges", "mean"),
-    q3=("charges", lambda x: x.quantile(0.75)),
-    max=("charges", "max"),
-    sd=("charges", "std")
-)
 
 
