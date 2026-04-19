@@ -399,6 +399,12 @@ vif(lm(charges ~ ., data = data))
 ```
 
 ## Mokymo/testavimo aibė
+```{r}
+data$smoker <- factor(data$smoker)
+data$smoker <- relevel(data$smoker, ref = "no")
+levels(data$smoker)
+contrasts(data$smoker)
+```
 
 ```{r}
 set.seed(80085)
@@ -406,6 +412,8 @@ train_index <- sample(1:nrow(data), size = 0.8 * nrow(data))
 train_data <- data[train_index, ]
 test_data <- data[-train_index, ]
 ```
+
+
 
 ## Modelio tobulinimas
 
