@@ -397,6 +397,12 @@ vif(lm(charges ~ ., data = data))
 ```
 
 ## Mokymo/testavimo aibė
+```{r}
+data$smoker <- factor(data$smoker)
+data$smoker <- relevel(data$smoker, ref = "no")
+levels(data$smoker)
+contrasts(data$smoker)
+```
 
 ```{r}
 data$smoker <- factor(data$smoker)
@@ -411,6 +417,8 @@ train_data <- data[train_index, ]
 test_data <- data[-train_index, ]
 ```
 
+
+
 ## Modelio tobulinimas
 
 ```{r}
@@ -418,7 +426,7 @@ model1 <- rq(charges ~ ., data=train_data, tau = 0.75)
 ```
 
 ```{r}
-summary(model1)
+summary(model1, se="nid")
 ```
 
 ```{r}
@@ -450,7 +458,7 @@ print(rq_confint_nid(model3))
 
 ```
 ```{r}
-model0 <- rq(charges ~ ., tau = seq(0.1, 0.9, by = 0.05), data = data)
+model0 <- rq(charges ~ ., tau = seq(0.1, 0.9, by = 0.05), data = train_data)
 
 plot(summary(model0), par='age')
 ```
@@ -466,7 +474,8 @@ plot(summary(model0), par='children')
 ## Modelio tinkamumas
 
 ```{r}
-model3 <- rq(charges ~ .  + smoker*bmi, data=train_data, tau = 0.75)
+model3 <- rq(charges ~ . + smoker*bmi, data=train_data, tau = 0.75)
+summary(model3)
 pred <- predict(model3, newdata = test_data)
 actual <- test_data$charges
 ```
@@ -491,4 +500,17 @@ R2 <- 1 - model3$rho/fit0$rho
 
 R1
 R2
+```
+```{r}
+#prognozes
+predictinam <- data.frame(
+  age = c(30, 50, 67),
+  sex = c("female", "male", "female"),
+  bmi = c(22, 30, 16),
+  children = c(3, 2, 0),
+  smoker = c("no", "no", "yes"),
+  region = c("northwest", "southeast", "northeast")
+)
+
+predict(model3, newdata = predictinam)
 ```
