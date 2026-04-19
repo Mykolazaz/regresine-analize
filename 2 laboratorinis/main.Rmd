@@ -401,6 +401,7 @@ vif(lm(charges ~ ., data = data))
 ## Mokymo/testavimo aibė
 
 ```{r}
+set.seed(80085)
 train_index <- sample(1:nrow(data), size = 0.8 * nrow(data))
 train_data <- data[train_index, ]
 test_data <- data[-train_index, ]
@@ -413,7 +414,7 @@ model1 <- rq(charges ~ ., data=train_data, tau = 0.75)
 ```
 
 ```{r}
-summary(model1)
+summary(model1, se="nid")
 ```
 
 ```{r}
@@ -484,4 +485,17 @@ R2 <- 1 - model3$rho/fit0$rho
 
 R1
 R2
+```
+```{r}
+#prognozes
+predictinam <- data.frame(
+  age = c(30, 50, 67),
+  sex = c("female", "male", "female"),
+  bmi = c(22, 30, 16),
+  children = c(3, 2, 0),
+  smoker = c("no", "no", "yes"),
+  region = c("northwest", "southeast", "northeast")
+)
+
+predict(model3, newdata = predictinam)
 ```
