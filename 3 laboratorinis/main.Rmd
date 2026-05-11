@@ -52,13 +52,7 @@ for (var in service_vars) {
 ```
 
 ```{r}
-
-```
-
-
-```{r}
-data$Churn <- as.numeric(data$SeniorCitizen == "Yes")
-data$Churn <- as.numeric(data$Churn == "Yes")
+data$Churn <- ifelse(data$Churn == "Yes", 1, 0)
 ```
 
 
@@ -72,8 +66,8 @@ freq_table <- function(x) {
 
 show_categorical <- function(var_name) {
 	x <- data[[var_name]]
-	print(knitr::kable(freq_table(x), caption = paste("Dažnių lentelė: ", var_name)))
-
+	# print(knitr::kable(freq_table(x), caption = paste("Dažnių lentelė: ", var_name)))
+  print(freq_table(x))
 	fit <- survfit(
 		as.formula(paste0("Surv(tenure, Churn) ~ ", var_name)),
 		data = data
@@ -117,15 +111,37 @@ max(data$tenure)
 Ilgiausias paslaugų teikimo terminas su klientu - 72 mėnesiai.
 
 ```{r summary-censoring}
-sum(data$tenure == max(data$tenure)) / nrow(data)
+# sum(data$tenure == max(data$tenure)) / nrow(data) 
+data %>% summarise(
+  total = n(),
+  censored = sum(Churn == 0),
+  censored_pct = round(100 * sum(Churn == 0)) / n(), 2)
 ```
 
 5,14 % klientų išliko klientai už cenzūravimo ribos.
+
+```{r}
+library(ggplot2)
+library(dplyr)
+ggplot(data %>% filter(Churn==1), aes(x = tenure, fill = factor(Churn))) +
+  geom_histogram(bins=72, position = "dodge",color="black") +
+  labs(x = "Laikas iki įvykio", y = "Skaičius", fill = "Churn") +
+  ggtitle("Įvykio iki laiko pasiskirstymas") 
+```
+Daug žmonių nutraukia paslaugas per pirmuosius 1-2 mėnesių, o po to įvykiai pasiskirsto tolygiau. 
+
+```
+TODO Klausimas dėstytojai: ar cia jau turime susietas reiksmes
+```
+
 
 ## gender
 
 ```{r gender-section, echo=FALSE}
 show_categorical("gender")
+```
+```{r}
+survdiff(Surv(tenure, Churn) ~ data$gender, data = data,rho=1)
 ```
 
 ## SeniorCitizen
@@ -133,19 +149,25 @@ show_categorical("gender")
 ```{r seniorcitizen-section, echo=FALSE}
 show_categorical("SeniorCitizen")
 ```
-
+```{r}
+survdiff(Surv(tenure, Churn) ~ data$SeniorCitizen, data = data,rho=0)
+```
 ## Partner
 
 ```{r partner-section, echo=FALSE}
 show_categorical("Partner")
 ```
-
+```{r}
+survdiff(Surv(tenure, Churn) ~ data$Partner, data = data,rho=0)
+```
 ## Dependents
 
 ```{r dependents-section, echo=FALSE}
 show_categorical("Dependents")
 ```
-
+```{r}
+survdiff(Surv(tenure, Churn) ~ data$Dependents, data = data,rho=1)
+```
 ## tenure
 
 ```{r tenure-section, echo=FALSE}
@@ -158,22 +180,35 @@ show_continuous("tenure")
 show_categorical("PhoneService")
 ```
 
+```{r}
+survdiff(Surv(tenure, Churn) ~ data$PhoneService, data = data,rho=1)
+
+```
 ## MultipleLines
 
 ```{r multiplelines-section, echo=FALSE}
 show_categorical("MultipleLines")
 ```
+```{r}
+survdiff(Surv(tenure, Churn) ~ data$MultipleLines, data = data,rho=0)
 
+```
 ## InternetService
 
 ```{r internetservice-section, echo=FALSE}
 show_categorical("InternetService")
 ```
+```{r}
+survdiff(Surv(tenure, Churn) ~ data$InternetService, data = data,rho=0)
 
+```
 ## OnlineSecurity
 
 ```{r onlinesecurity-section, echo=FALSE}
 show_categorical("OnlineSecurity")
+```
+```{r}
+survdiff(Surv(tenure, Churn) ~ data$OnlineSecurity, data = data,rho=0)
 ```
 
 ## OnlineBackup
@@ -182,10 +217,18 @@ show_categorical("OnlineSecurity")
 show_categorical("OnlineBackup")
 ```
 
+```{r}
+survdiff(Surv(tenure, Churn) ~ data$OnlineBackup, data = data,rho=0)
+
+```
+
 ## DeviceProtection
 
 ```{r deviceprotection-section, echo=FALSE}
 show_categorical("DeviceProtection")
+```
+```{r}
+survdiff(Surv(tenure, Churn) ~ data$DeviceProtection, data = data,rho=0)
 ```
 
 ## TechSupport
@@ -193,35 +236,52 @@ show_categorical("DeviceProtection")
 ```{r techsupport-section, echo=FALSE}
 show_categorical("TechSupport")
 ```
-
+```{r}
+survdiff(Surv(tenure, Churn) ~ data$TechSupport, data = data,rho=0)
+```
 ## StreamingTV
 
 ```{r streamingtv-section, echo=FALSE}
 show_categorical("StreamingTV")
 ```
-
+```{r}
+survdiff(Surv(tenure, Churn) ~ data$StreamingTV, data = data,rho=1)
+```
 ## StreamingMovies
 
 ```{r streamingmovies-section, echo=FALSE}
 show_categorical("StreamingMovies")
 ```
+```{r}
+survdiff(Surv(tenure, Churn) ~ data$StreamingMovies, data = data,rho=1)
 
+```
 ## Contract
 
 ```{r contract-section, echo=FALSE}
 show_categorical("Contract")
 ```
+```{r}
+survdiff(Surv(tenure, Churn) ~ data$Contract, data = data,rho=0)
 
+```
 ## PaperlessBilling
 
 ```{r paperlessbilling-section, echo=FALSE}
 show_categorical("PaperlessBilling")
 ```
 
+```{r}
+survdiff(Surv(tenure, Churn) ~ data$PaperlessBilling, data = data,rho=0)
+```
 ## PaymentMethod
 
 ```{r paymentmethod-section, echo=FALSE}
 show_categorical("PaymentMethod")
+```
+```{r}
+survdiff(Surv(tenure, Churn) ~ data$PaymentMethod, data = data,rho=0)
+
 ```
 
 ## MonthlyCharges
