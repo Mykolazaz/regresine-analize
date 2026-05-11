@@ -1,0 +1,353 @@
+---
+title: "main"
+output: pdf_document
+date: "`r Sys.Date()`"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(readr)
+library(survival)
+```
+
+Ar logiška naudoti monthly billing ir total billing?
+
+```{r}
+data <- read_csv("./churn.csv")
+```
+
+
+```{r load-data}
+categorical_vars <- c(
+	"gender",
+	"Partner",
+	"Dependents",
+	"PhoneService",
+	"MultipleLines",
+	"InternetService",
+	"OnlineSecurity",
+	"OnlineBackup",
+	"DeviceProtection",
+	"TechSupport",
+	"StreamingTV",
+	"StreamingMovies",
+	"Contract",
+	"PaperlessBilling",
+	"PaymentMethod",
+	"Churn"
+)
+
+data[categorical_vars] <- lapply(data[categorical_vars], factor)
+data$SeniorCitizen <- factor(ifelse(data$SeniorCitizen == 1, "Yes", "No"), levels = c("No", "Yes"))
+
+service_vars <- c("MultipleLines", "OnlineSecurity", "OnlineBackup", "DeviceProtection", 
+                  "TechSupport", "StreamingTV", "StreamingMovies")
+for (var in service_vars) {
+  levels(data[[var]]) <- gsub("No phone service|No internet service", "No", levels(data[[var]]))
+  data[[var]] <- factor(data[[var]], levels = c("No", "Yes"))
+}
+```
+
+```{r}
+
+```
+
+
+```{r}
+data$Churn <- as.numeric(data$SeniorCitizen == "Yes")
+data$Churn <- as.numeric(data$Churn == "Yes")
+```
+
+
+```{r helper-functions, echo=FALSE}
+freq_table <- function(x) {
+	tab <- as.data.frame(table(x, useNA = "ifany"), stringsAsFactors = FALSE)
+	names(tab) <- c("Kategorija", "Kiekis")
+	tab$Procentai <- round(100 * tab$Kiekis / sum(tab$Kiekis), 2)
+	tab
+}
+
+show_categorical <- function(var_name) {
+	x <- data[[var_name]]
+	print(knitr::kable(freq_table(x), caption = paste("Dažnių lentelė: ", var_name)))
+
+	fit <- survfit(
+		as.formula(paste0("Surv(tenure, Churn) ~ ", var_name)),
+		data = data
+	)
+
+	plot(
+		fit,
+		col = seq_len(length(levels(x))),
+		lwd = 2,
+		xlab = "Tenure, months",
+		ylab = "Survival probability",
+		main = paste("Kaplan-Meier curves by", var_name),
+		mark.time = FALSE,
+		conf.int = FALSE
+	)
+	legend(
+		"topright",
+		legend = levels(x),
+		col = seq_len(length(levels(x))),
+		lwd = 2,
+		bty = "n"
+	)
+}
+
+show_continuous <- function(var_name) {
+	x <- data[[var_name]]
+	print(summary(x))
+	boxplot(
+		x,
+		data = data,
+		ylab = var_name)
+}
+```
+
+Prognozuojamas kliento telekomunikacijos paslaugų atsisakymas. I tipo cenzūravimas iš dešinės.
+
+```{r summary-tenure}
+max(data$tenure)
+```
+
+Ilgiausias paslaugų teikimo terminas su klientu - 72 mėnesiai.
+
+```{r summary-censoring}
+sum(data$tenure == max(data$tenure)) / nrow(data)
+```
+
+5,14 % klientų išliko klientai už cenzūravimo ribos.
+
+## gender
+
+```{r gender-section, echo=FALSE}
+show_categorical("gender")
+```
+
+## SeniorCitizen
+
+```{r seniorcitizen-section, echo=FALSE}
+show_categorical("SeniorCitizen")
+```
+
+## Partner
+
+```{r partner-section, echo=FALSE}
+show_categorical("Partner")
+```
+
+## Dependents
+
+```{r dependents-section, echo=FALSE}
+show_categorical("Dependents")
+```
+
+## tenure
+
+```{r tenure-section, echo=FALSE}
+show_continuous("tenure")
+```
+
+## PhoneService
+
+```{r phoneservice-section, echo=FALSE}
+show_categorical("PhoneService")
+```
+
+## MultipleLines
+
+```{r multiplelines-section, echo=FALSE}
+show_categorical("MultipleLines")
+```
+
+## InternetService
+
+```{r internetservice-section, echo=FALSE}
+show_categorical("InternetService")
+```
+
+## OnlineSecurity
+
+```{r onlinesecurity-section, echo=FALSE}
+show_categorical("OnlineSecurity")
+```
+
+## OnlineBackup
+
+```{r onlinebackup-section, echo=FALSE}
+show_categorical("OnlineBackup")
+```
+
+## DeviceProtection
+
+```{r deviceprotection-section, echo=FALSE}
+show_categorical("DeviceProtection")
+```
+
+## TechSupport
+
+```{r techsupport-section, echo=FALSE}
+show_categorical("TechSupport")
+```
+
+## StreamingTV
+
+```{r streamingtv-section, echo=FALSE}
+show_categorical("StreamingTV")
+```
+
+## StreamingMovies
+
+```{r streamingmovies-section, echo=FALSE}
+show_categorical("StreamingMovies")
+```
+
+## Contract
+
+```{r contract-section, echo=FALSE}
+show_categorical("Contract")
+```
+
+## PaperlessBilling
+
+```{r paperlessbilling-section, echo=FALSE}
+show_categorical("PaperlessBilling")
+```
+
+## PaymentMethod
+
+```{r paymentmethod-section, echo=FALSE}
+show_categorical("PaymentMethod")
+```
+
+## MonthlyCharges
+
+```{r monthlycharges-section, echo=FALSE}
+show_continuous("MonthlyCharges")
+```
+
+## TotalCharges
+
+```{r totalcharges-section, echo=FALSE}
+show_continuous("TotalCharges")
+```
+
+## Churn
+
+```{r churn-section, echo=FALSE}
+print(knitr::kable(freq_table(data$Churn), caption = "Dažnių lentelė: Churn"))
+```
+
+# Multicollinearity
+
+```{r}
+fml <- Surv(tenure, Churn) ~ 
+  gender + Partner + Dependents + PhoneService + MultipleLines +
+  InternetService + OnlineSecurity + OnlineBackup + DeviceProtection +
+  TechSupport + StreamingTV + StreamingMovies + Contract +
+  PaperlessBilling + PaymentMethod + SeniorCitizen + MonthlyCharges + TotalCharges
+
+cox_fit <- coxph(fml, data)
+```
+
+
+```{r}
+library(car)
+vif(cox_fit)
+```
+
+Reikalinga pažingsnė regresija.
+
+```{r}
+data$totalch_tenure <- data$TotalCharges * data$tenure
+```
+
+# Train-test split
+
+```{r train-test-split, echo=FALSE}
+set.seed(123)
+n <- nrow(data)
+train_idx <- sample(seq_len(n), size = floor(0.8 * n))
+train <- data[train_idx, ]
+test <- data[-train_idx, ]
+cat("Train rows:", nrow(train), "  Test rows:", nrow(test), "\n")
+```
+
+# Pradinis Cox PH modelis
+
+```{r fit-cox, echo=FALSE}
+fml <- Surv(tenure, Churn) ~ 
+  gender + Partner + Dependents + PhoneService + MultipleLines +
+  InternetService + OnlineSecurity + OnlineBackup + DeviceProtection +
+  TechSupport + StreamingTV + StreamingMovies + Contract +
+  PaperlessBilling + PaymentMethod + SeniorCitizen + MonthlyCharges + TotalCharges
+
+cox_fit <- coxph(fml, data = train)
+print(summary(cox_fit))
+
+ph_test <- cox.zph(cox_fit)
+print(ph_test)
+plot(ph_test)
+```
+
+Grafikai rodo, kad yra kovariančių priklausomumas nuo laiko. Reikės naudoti apibendrintą Cox modelį.
+
+# Apibendrintas Cox modelis
+
+```{r}
+fml <- Surv(tenure, Churn) ~ 
+  Partner + PhoneService + MultipleLines +
+  InternetService + DeviceProtection +
+  StreamingTV + StreamingMovies + Contract +
+  PaperlessBilling + PaymentMethod + TotalCharges +
+  #Partner:tenure +
+  #PhoneService:tenure +
+  #MultipleLines:tenure +
+  #InternetService:tenure +
+  #DeviceProtection:tenure +
+  #StreamingTV:tenure +
+  #StreamingMovies:tenure +
+  #Contract:tenure +
+  #PaperlessBilling:tenure +
+  #PaymentMethod:tenure +
+  totalch_tenure
+
+cox_fit <- coxph(fml, data = train)
+print(summary(cox_fit))
+
+ph_test <- cox.zph(cox_fit)
+print(ph_test)
+plot(ph_test)
+```
+
+
+Išmetimo eiliškumas:
+1. `MonthlyCharges`
+2. `SeniorCitizen`
+3. `OnlineBackup`
+4. `TechSupport`
+5. `Gender`
+6. `Dependents`
+7. `OnlineSecurity`
+
+
+# Modelio tobulinimas
+
+```{r}
+fml <- Surv(tenure, Churn) ~ 
+  Partner + PhoneService + MultipleLines +
+  InternetService + DeviceProtection +
+  StreamingTV + StreamingMovies + Contract +
+  PaperlessBilling + PaymentMethod + TotalCharges + totalch_tenure
+
+cox_fit <- coxph(fml, data = train)
+print(summary(cox_fit))
+
+ph_test <- cox.zph(cox_fit)
+print(ph_test)
+plot(ph_test)
+```
