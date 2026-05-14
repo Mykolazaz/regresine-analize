@@ -13,11 +13,11 @@ library(readr)
 library(ggplot2)
 library(dplyr)
 library(survival)
+library(MASS)
+library(car)
 ```
 
 Ar logiška naudoti monthly billing ir total billing?
-
-Klausimas dėstytojai: ar cia jau turime susietas reiksmes
 
 
 ```{r}
@@ -308,7 +308,7 @@ show_continuous("tenure")
 ## Churn
 
 ```{r churn-section, echo=FALSE}
-print(knitr::kable(freq_table(data$Churn), caption = "Dažnių lentelė: Churn"))
+print(freq_table(data$Churn))
 ```
 
 # Multicollinearity
@@ -325,20 +325,39 @@ cox_fit <- coxph(fml, data)
 
 
 ```{r}
-library(car)
 vif(cox_fit)
 ```
 
 Reikalinga pažingsnė regresija.
 
 ```{r}
-data$totalch_tenure <- data$TotalCharges * data$tenure
+
+cox_full <- coxph(fml, data = data)
+
+cox_step <- stepAIC(
+  cox_full,
+  direction = "both",
+  trace = FALSE
+)
+
+cat("\nGalutinis pažingsninės Cox regresijos modelis:\n")
+print(formula(cox_step))
+
+cat("\nModelio santrauka:\n")
+print(summary(cox_step))
+
+cat("\nPH prielaidos tikrinimas:\n")
+ph_test_step <- cox.zph(cox_step)
+print(ph_test_step)
+
+plot(ph_test_step)
+
 ```
 
 # Train-test split
 
 ```{r train-test-split, echo=FALSE}
-set.seed(123)
+set.seed(80085)
 n <- nrow(data)
 train_idx <- sample(seq_len(n), size = floor(0.8 * n))
 train <- data[train_idx, ]
@@ -360,102 +379,17 @@ print(summary(cox_fit))
 
 ph_test <- cox.zph(cox_fit)
 print(ph_test)
+```
+```{r}
 plot(ph_test)
 ```
 
 Grafikai rodo, kad yra kovariančių priklausomumas nuo laiko. Reikės naudoti apibendrintą Cox modelį.
 
-# Apibendrintas Cox modelis
-
-```{r}
-fml <- Surv(tenure, Churn) ~ 
-  Partner + PhoneService + MultipleLines +
-  InternetService + DeviceProtection +
-  StreamingTV + StreamingMovies + Contract +
-  PaperlessBilling + PaymentMethod + TotalCharges +
-  #Partner:tenure +
-  #PhoneService:tenure +
-  #MultipleLines:tenure +
-  #InternetService:tenure +
-  #DeviceProtection:tenure +
-  #StreamingTV:tenure +
-  #StreamingMovies:tenure +
-  #Contract:tenure +
-  #PaperlessBilling:tenure +
-  #PaymentMethod:tenure +
-  totalch_tenure
-
-cox_fit <- coxph(fml, data = train)
-print(summary(cox_fit))
-
-ph_test <- cox.zph(cox_fit)
-print(ph_test)
-plot(ph_test)
-```
-```{r, as nesuprantu kaip mykolas ismetinejo}
-library(survival)
-library(MASS)
-
-fml_full <- Surv(tenure, Churn) ~ 
-  gender + Partner + Dependents + PhoneService + MultipleLines +
-  InternetService + OnlineSecurity + OnlineBackup + DeviceProtection +
-  TechSupport + StreamingTV + StreamingMovies + Contract +
-  PaperlessBilling + PaymentMethod + SeniorCitizen + MonthlyCharges + TotalCharges
-
-cox_full <- coxph(fml_full, data = train)
-
-cox_step <- stepAIC(
-  cox_full,
-  direction = "both",
-  trace = FALSE
-)
-
-cat("\nGalutinis pažingsninės Cox regresijos modelis:\n")
-print(formula(cox_step))
-
-cat("\nModelio santrauka:\n")
-print(summary(cox_step))
-
-cat("\nPH prielaidos tikrinimas:\n")
-ph_test_step <- cox.zph(cox_step)
-print(ph_test_step)
-
-plot(ph_test_step)
-
-```
 ```{r}
 vif(cox_step)
-
 ```
-
-Išmetimo eiliškumas:
-1. `MonthlyCharges`
-2. `SeniorCitizen`
-3. `OnlineBackup`
-4. `TechSupport`
-5. `Gender`
-6. `Dependents`
-7. `OnlineSecurity`
-
-
-# Modelio tobulinimas
-
-```{r}
-fml <- Surv(tenure, Churn) ~ 
-  Partner + PhoneService + MultipleLines +
-  InternetService + DeviceProtection +
-  StreamingTV + StreamingMovies + Contract +
-  PaperlessBilling + PaymentMethod + TotalCharges + totalch_tenure
-
-cox_fit <- coxph(fml, data = train)
-print(summary(cox_fit))
-
-ph_test <- cox.zph(cox_fit)
-print(ph_test)
-plot(ph_test)
-```
-
-
+# Apibendrintas Cox modelis
 
 ```{r}
 unfold_churn <- function(data, time = "tenure", event = "Churn") {
@@ -480,5 +414,10 @@ unfold_churn <- function(data, time = "tenure", event = "Churn") {
 train.long <- unfold_churn(train, time = "tenure", event = "Churn")
 
 train.long[1:50, ]
-
 ```
+
+```{r}
+general_model<-coxph(Surv())
+```
+
+# Modelio tobulinimas
