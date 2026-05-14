@@ -10,16 +10,21 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r}
 library(readr)
+library(ggplot2)
+library(dplyr)
 library(survival)
 ```
 
 Ar logiška naudoti monthly billing ir total billing?
 
+Klausimas dėstytojai: ar cia jau turime susietas reiksmes
+
+
 ```{r}
 data <- read_csv("./churn.csv")
 ```
 
-
+# Data cleaning 
 ```{r load-data}
 categorical_vars <- c(
 	"gender",
@@ -55,7 +60,14 @@ for (var in service_vars) {
 data$Churn <- ifelse(data$Churn == "Yes", 1, 0)
 ```
 
-
+```{r}
+data.frame(
+  column = names(data),
+  na_count = colSums(is.na(data))
+)
+```
+Turime praleistų reikšmių TotalCharges
+# EDA
 ```{r helper-functions, echo=FALSE}
 freq_table <- function(x) {
 	tab <- as.data.frame(table(x, useNA = "ifany"), stringsAsFactors = FALSE)
@@ -111,29 +123,15 @@ max(data$tenure)
 Ilgiausias paslaugų teikimo terminas su klientu - 72 mėnesiai.
 
 ```{r summary-censoring}
-# sum(data$tenure == max(data$tenure)) / nrow(data) 
+sum(data$tenure == max(data$tenure)) / nrow(data)
 data %>% summarise(
   total = n(),
   censored = sum(Churn == 0),
   censored_pct = round(100 * sum(Churn == 0)) / n(), 2)
 ```
 
-5,14 % klientų išliko klientai už cenzūravimo ribos.
-
-```{r}
-library(ggplot2)
-library(dplyr)
-ggplot(data %>% filter(Churn==1), aes(x = tenure, fill = factor(Churn))) +
-  geom_histogram(bins=72, position = "dodge",color="black") +
-  labs(x = "Laikas iki įvykio", y = "Skaičius", fill = "Churn") +
-  ggtitle("Įvykio iki laiko pasiskirstymas") 
-```
-Daug žmonių nutraukia paslaugas per pirmuosius 1-2 mėnesių, o po to įvykiai pasiskirsto tolygiau. 
-
-```
-TODO Klausimas dėstytojai: ar cia jau turime susietas reiksmes
-```
-
+73 % klientų išliko klientai už cenzūravimo ribos.
+Daug žmonių nutraukia paslaugas per pirmuosius 1-2 mėnesių, o po to įvykiai pasiskirsto tolygiau. Churnintu yra maziau nei nechurnintu visada.
 
 ## gender
 
@@ -167,11 +165,6 @@ show_categorical("Dependents")
 ```
 ```{r}
 survdiff(Surv(tenure, Churn) ~ data$Dependents, data = data,rho=1)
-```
-## tenure
-
-```{r tenure-section, echo=FALSE}
-show_continuous("tenure")
 ```
 
 ## PhoneService
@@ -289,13 +282,29 @@ survdiff(Surv(tenure, Churn) ~ data$PaymentMethod, data = data,rho=0)
 ```{r monthlycharges-section, echo=FALSE}
 show_continuous("MonthlyCharges")
 ```
+```{r}
+ggplot(data,aes(tenure,MonthlyCharges, color = factor(Churn))) +
+  geom_point(alpha=0.5) +
+  labs(x = "Laikas", y = "Monthly Charges", color = "Churn") +
+  ggtitle("Nucenzuruotų duomenų sklaidos diagrama: Tenure ir Monthly Charges") 
 
+```
 ## TotalCharges
 
 ```{r totalcharges-section, echo=FALSE}
 show_continuous("TotalCharges")
 ```
+```{r}
+ggplot(data,aes(tenure,TotalCharges, color = factor(Churn))) +
+  geom_point(alpha=0.5) +
+  labs(x = "Laikas", y = "Monthly Charges", color = "Churn") +
+  ggtitle("Nucenzuruotų duomenų sklaidos diagrama: Tenure vs Monthly Charges") 
+```
+## tenure
 
+```{r tenure-section, echo=FALSE}
+show_continuous("tenure")
+```
 ## Churn
 
 ```{r churn-section, echo=FALSE}
@@ -383,7 +392,41 @@ ph_test <- cox.zph(cox_fit)
 print(ph_test)
 plot(ph_test)
 ```
+```{r, as nesuprantu kaip mykolas ismetinejo}
+library(survival)
+library(MASS)
 
+fml_full <- Surv(tenure, Churn) ~ 
+  gender + Partner + Dependents + PhoneService + MultipleLines +
+  InternetService + OnlineSecurity + OnlineBackup + DeviceProtection +
+  TechSupport + StreamingTV + StreamingMovies + Contract +
+  PaperlessBilling + PaymentMethod + SeniorCitizen + MonthlyCharges + TotalCharges
+
+cox_full <- coxph(fml_full, data = train)
+
+cox_step <- stepAIC(
+  cox_full,
+  direction = "both",
+  trace = FALSE
+)
+
+cat("\nGalutinis pažingsninės Cox regresijos modelis:\n")
+print(formula(cox_step))
+
+cat("\nModelio santrauka:\n")
+print(summary(cox_step))
+
+cat("\nPH prielaidos tikrinimas:\n")
+ph_test_step <- cox.zph(cox_step)
+print(ph_test_step)
+
+plot(ph_test_step)
+
+```
+```{r}
+vif(cox_step)
+
+```
 
 Išmetimo eiliškumas:
 1. `MonthlyCharges`
@@ -410,4 +453,32 @@ print(summary(cox_fit))
 ph_test <- cox.zph(cox_fit)
 print(ph_test)
 plot(ph_test)
+```
+
+
+
+```{r}
+unfold_churn <- function(data, time = "tenure", event = "Churn") {
+  out <- data[rep(seq_len(nrow(data)), pmax(data[[time]], 1)), ]
+  
+  out$start <- unlist(lapply(data[[time]], function(t) {
+    if (t <= 0) 0 else seq(0, t - 1)
+  }))
+  
+  out$stop <- unlist(lapply(data[[time]], function(t) {
+    if (t <= 0) 1 else seq(1, t)
+  }))
+  
+  out[[event]] <- 0
+  
+  last_rows <- cumsum(pmax(data[[time]], 1))
+  out[[event]][last_rows] <- data[[event]]
+  
+  rownames(out) <- NULL
+  out
+}
+train.long <- unfold_churn(train, time = "tenure", event = "Churn")
+
+train.long[1:50, ]
+
 ```
