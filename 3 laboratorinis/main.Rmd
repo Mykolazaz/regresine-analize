@@ -254,7 +254,7 @@ survdiff(Surv(tenure, Churn) ~ data$TechSupport, data = data,rho=0)
 show_categorical("StreamingTV")
 ```
 ```{r}
-survdiff(Surv(tenure, Churn) ~ data$StreamingTV, data = data,rho=1)
+survdiff(Surv(tenure, Churn) ~ data$StreamingTV, data = data,rho=0)
 ```
 ## StreamingMovies
 
@@ -313,8 +313,8 @@ show_continuous("TotalCharges")
 ```{r}
 ggplot(data,aes(tenure,TotalCharges, color = factor(Churn))) +
   geom_point(alpha=0.5) +
-  labs(x = "Laikas", y = "Monthly Charges", color = "Churn") +
-  ggtitle("Nucenzuruotų duomenų sklaidos diagrama: Tenure vs Monthly Charges") 
+  labs(x = "Laikas", y = "Total Charges", color = "Churn") +
+  ggtitle("Nucenzuruotų duomenų sklaidos diagrama: Tenure vs Total Charges") 
 ```
 ## tenure
 
@@ -339,11 +339,12 @@ data$StreamingTVYes <- as.numeric(data$StreamingTV == "Yes")
 data$StreamingMoviesYes <- as.numeric(data$StreamingMovies == "Yes")
 data$PaperlessBillingYes <- as.numeric(data$PaperlessBilling == "Yes")
 data$SeniorCitizenYes <- as.numeric(data$SeniorCitizen == "Yes")
-
+data$OnlineBackup<-as.numeric(data$OnlineBackup=="Yes")
+data$TechSupport<-as.numeric(data$TechSupport=="Yes")
 data <- data[, !names(data) %in% c(
   "Partner", "Dependents", "PhoneService", "MultipleLines",
   "OnlineSecurity", "DeviceProtection", "StreamingTV",
-  "StreamingMovies", "PaperlessBilling","SeniorCitizen"
+  "StreamingMovies", "PaperlessBilling","SeniorCitizen", "OnlineBackup", "TechSupport"
 )]
 
 ```
@@ -381,10 +382,14 @@ print(formula(cox_step))
 cat("\nModelio santrauka:\n")
 print(summary(cox_step))
 
+
+```
+Dar vis po pazingsnines lieka nereiksmingu, tad jos taip pat reiktu ismest.
+
+```{r}
 cat("\nPH prielaidos tikrinimas:\n")
 ph_test_step <- cox.zph(cox_step)
 print(ph_test_step)
-
 plot(ph_test_step)
 
 ```
@@ -434,7 +439,7 @@ for (j in seq_len(ncol(dfbeta))) {
 
 par(mfrow = c(1, 1))
 ```
-Prie contractTwo year turime isskirciu jas reik pasalinti.
+<!-- TODO: Prie contractTwo year turime isskirciu jas reik pasalinti. -->
 
 ```{r fit-cox, echo=FALSE}
 print(summary(model))
@@ -453,7 +458,9 @@ plot(
   X[, "TotalCharges"], res,
   xlab = "TotalCharges",
   ylab = "Martingale residuals",
-  main = "Residuals: TotalCharges"
+  main = "Residuals: TotalCharges",
+  col = rgb(0, 0, 0, alpha = 0.05)
+  
 )
 abline(h = 0, lty = 2, lwd = 2)
 lines(lowess(X[, "TotalCharges"], res, iter = 0), lwd = 2)
@@ -465,7 +472,8 @@ plot(
   X[, "TotalCharges"], cr,
   xlab = "TotalCharges",
   ylab = "Component + residual",
-  main = "C+R: TotalCharges"
+  main = "C+R: TotalCharges",
+  col=rgb(0, 0, 0, alpha=0.05)
 )
 abline(lm(cr ~ X[, "TotalCharges"]), lty = 2, lwd = 2)
 lines(lowess(X[, "TotalCharges"], cr, iter = 0), lwd = 2)
@@ -511,6 +519,7 @@ train.long <- unfold_churn(train, time = "tenure", event = "Churn")
 
 train.long[1:50, ]
 ```
+
 
 ```{r}
 # train.long$PartnerYes <- as.numeric(train.long$Partner == "Yes")
