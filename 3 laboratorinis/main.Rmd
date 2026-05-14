@@ -66,7 +66,19 @@ data.frame(
   na_count = colSums(is.na(data))
 )
 ```
-Turime praleistų reikšmių TotalCharges
+```{r}
+data[is.na(data$TotalCharges), ]
+
+```
+
+Turime praleistų reikšmių TotalCharges, jas pasalinsime
+```{r}
+data<-data[!is.na(data$TotalCharges), ]
+```
+
+```{r}
+```
+
 # EDA
 ```{r helper-functions, echo=FALSE}
 freq_table <- function(x) {
@@ -316,13 +328,32 @@ print(freq_table(data$Churn))
 ```
 
 # Multicollinearity
+```{r}
+data$PartnerYes <- as.numeric(data$Partner == "Yes")
+data$DependentsYes <- as.numeric(data$Dependents == "Yes")
+data$PhoneServiceYes <- as.numeric(data$PhoneService == "Yes")
+data$MultipleLinesYes <- as.numeric(data$MultipleLines == "Yes")
+data$OnlineSecurityYes <- as.numeric(data$OnlineSecurity == "Yes")
+data$DeviceProtectionYes <- as.numeric(data$DeviceProtection == "Yes")
+data$StreamingTVYes <- as.numeric(data$StreamingTV == "Yes")
+data$StreamingMoviesYes <- as.numeric(data$StreamingMovies == "Yes")
+data$PaperlessBillingYes <- as.numeric(data$PaperlessBilling == "Yes")
+data$SeniorCitizenYes <- as.numeric(data$SeniorCitizen == "Yes")
+
+data <- data[, !names(data) %in% c(
+  "Partner", "Dependents", "PhoneService", "MultipleLines",
+  "OnlineSecurity", "DeviceProtection", "StreamingTV",
+  "StreamingMovies", "PaperlessBilling","SeniorCitizen"
+)]
+
+```
 
 ```{r}
 fml <- Surv(tenure, Churn) ~ 
-  gender + Partner + Dependents + PhoneService + MultipleLines +
-  InternetService + OnlineSecurity + OnlineBackup + DeviceProtection +
-  TechSupport + StreamingTV + StreamingMovies + Contract +
-  PaperlessBilling + PaymentMethod + SeniorCitizen + MonthlyCharges + TotalCharges
+  gender + PartnerYes + DependentsYes + PhoneServiceYes + MultipleLinesYes +
+  InternetService  + OnlineSecurityYes + OnlineBackup + DeviceProtectionYes +
+  TechSupport + StreamingTVYes + StreamingMoviesYes + Contract +
+  PaperlessBillingYes + PaymentMethod + SeniorCitizenYes + MonthlyCharges + TotalCharges
 
 cox_fit <- coxph(fml, data)
 ```
@@ -374,8 +405,16 @@ cat("Train rows:", nrow(train), "  Test rows:", nrow(test), "\n")
 
 # Pradinis Cox PH modelis
 ```{r}
-dfbeta <- residuals(cox_step, type = "dfbeta")
-colnames(dfbeta) <- names(cox_step$coefficients)
+model<- coxph(
+  Surv(tenure, Churn) ~ 
+    PartnerYes + PhoneServiceYes + MultipleLinesYes +
+    InternetService + OnlineSecurityYes + DeviceProtectionYes +
+    StreamingTVYes + StreamingMoviesYes + Contract +
+    PaperlessBillingYes + PaymentMethod + TotalCharges + DependentsYes,
+  data = train
+)
+dfbeta <- residuals(model, type = "dfbeta")
+colnames(dfbeta) <- names(model$coefficients)
 n <- nrow(dfbeta)
 limit <- 2 / sqrt(n)
 
@@ -397,18 +436,15 @@ par(mfrow = c(1, 1))
 ```
 Prie contractTwo year turime isskirciu jas reik pasalinti.
 
-
-
-
 ```{r fit-cox, echo=FALSE}
-print(summary(cox_step))
+print(summary(model))
 ```
 
 ```{r}
-res <- residuals(cox_step, type = "martingale")
+res <- residuals(model, type = "martingale")
 
-X <- model.matrix(cox_step)[, "TotalCharges", drop = FALSE]
-b <- coef(cox_step)["TotalCharges"]
+X <- model.matrix(model)[, "TotalCharges", drop = FALSE]
+b <- coef(model)["TotalCharges"]
 
 par(mfrow = c(1, 2))
 
@@ -439,14 +475,14 @@ par(mfrow = c(1, 1))
 
 
 ```{r}
-ph_test <- cox.zph(cox_step)
+ph_test <- cox.zph(model)
 print(ph_test)
 ```
 ```{r}
 plot(ph_test)
 ```
 
-Grafikai rodo, kad yra kovariančių priklausomumas nuo laiko. Reikės naudoti apibendrintą Cox modelį.
+Grafikai ir testas rodo, kad yra kovariančių priklausomumas nuo laiko. Reikės naudoti apibendrintą Cox modelį.
 
 
 # Apibendrintas Cox modelis
@@ -477,45 +513,51 @@ train.long[1:50, ]
 ```
 
 ```{r}
-train.long$PartnerYes <- as.numeric(train.long$Partner == "Yes")
-train.long$DependentsYes <- as.numeric(train.long$Dependents == "Yes")
-train.long$PhoneServiceYes <- as.numeric(train.long$PhoneService == "Yes")
-train.long$MultipleLinesYes <- as.numeric(train.long$MultipleLines == "Yes")
-train.long$OnlineSecurityYes <- as.numeric(train.long$OnlineSecurity == "Yes")
-train.long$DeviceProtectionYes <- as.numeric(train.long$DeviceProtection == "Yes")
-train.long$StreamingTVYes <- as.numeric(train.long$StreamingTV == "Yes")
-train.long$StreamingMoviesYes <- as.numeric(train.long$StreamingMovies == "Yes")
-train.long$PaperlessBillingYes <- as.numeric(train.long$PaperlessBilling == "Yes")
+# train.long$PartnerYes <- as.numeric(train.long$Partner == "Yes")
+# train.long$DependentsYes <- as.numeric(train.long$Dependents == "Yes")
+# train.long$PhoneServiceYes <- as.numeric(train.long$PhoneService == "Yes")
+# train.long$MultipleLinesYes <- as.numeric(train.long$MultipleLines == "Yes")
+# train.long$OnlineSecurityYes <- as.numeric(train.long$OnlineSecurity == "Yes")
+# train.long$DeviceProtectionYes <- as.numeric(train.long$DeviceProtection == "Yes")
+# train.long$StreamingTVYes <- as.numeric(train.long$StreamingTV == "Yes")
+# train.long$StreamingMoviesYes <- as.numeric(train.long$StreamingMovies == "Yes")
+# train.long$PaperlessBillingYes <- as.numeric(train.long$PaperlessBilling == "Yes")
+```
 
-# general_model_time <- coxph(
-#   Surv(start, stop, Churn) ~ 
-#     PartnerYes  + PhoneServiceYes + MultipleLinesYes +
-#     InternetService + OnlineSecurityYes + DeviceProtectionYes +
-#     StreamingTVYes + StreamingMoviesYes + Contract +
-#     PaperlessBillingYes + PaymentMethod + TotalCharges +
-#     
-#     stop:(PartnerYes  + PhoneServiceYes + MultipleLinesYes +
-#           InternetService + OnlineSecurityYes + DeviceProtectionYes +
-#           StreamingTVYes + StreamingMoviesYes +
-#           PaperlessBillingYes + PaymentMethod + TotalCharges),
-#   data = train.long
-# )
+
+```{r}
 general_model_time <- coxph(
   Surv(start, stop, Churn) ~ 
     PartnerYes  + PhoneServiceYes + MultipleLinesYes +
     InternetService + OnlineSecurityYes + DeviceProtectionYes +
+    # DependantsYes+
     StreamingTVYes + StreamingMoviesYes + Contract +
     PaperlessBillingYes + PaymentMethod + TotalCharges +
     
-    stop:(PartnerYes  + PhoneServiceYes + MultipleLinesYes +
+    stop:(PhoneServiceYes + MultipleLinesYes +
           InternetService + OnlineSecurityYes + DeviceProtectionYes +
           StreamingTVYes + StreamingMoviesYes +
-          PaperlessBillingYes + PaymentMethod + TotalCharges),
+          PaperlessBillingYes + PaymentMethod + TotalCharges
+          # + Dependants
+          ),
   data = train.long
 )
 
 summary(general_model_time)
 ```
+artner          1.191293  1        1.091464 NEBER
+Dependents       1.227976  1        1.108141 NEBER
+PhoneService     1.639599  1        1.280468
+MultipleLines    1.216265  1        1.102844
+InternetService  3.270742  2        1.344812
+OnlineSecurity   1.111714  1        1.054379
+DeviceProtection 1.110542  1        1.053823
+StreamingTV      1.262681  1        1.123691
+StreamingMovies  1.277768  1        1.130384
+Contract         1.344338  2        1.076780
+PaperlessBilling 1.096282  1        1.047035
+PaymentMethod    1.173258  3        1.026989
+TotalCharges     2.168323  1        1.472523
 ## TEST
 
 ```{r}
@@ -523,7 +565,6 @@ test.long <- unfold_churn(test, time = "tenure", event = "Churn")
 ```
 
 ```{r}
-
 test.long$PartnerYes <- as.numeric(test.long$Partner == "Yes")
 test.long$DependentsYes <- as.numeric(test.long$Dependents == "Yes")
 test.long$PhoneServiceYes <- as.numeric(test.long$PhoneService == "Yes")
