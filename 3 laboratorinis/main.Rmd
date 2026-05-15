@@ -440,31 +440,53 @@ for (j in seq_len(ncol(dfbeta))) {
 par(mfrow = c(1, 1))
 ```
 ```{r}
-# dev.off()
+# --- Plot 1 ---
 png("./images/dfbeta_sutarties_tipas_dveju_metu.png", width = 500, height = 500)
-par(mfrow = c(1, 1))
+
+par(
+  mfrow = c(1, 1),
+  cex = 1.2,        # overall scaling
+  cex.axis = 1.2,   # tick labels
+  cex.lab = 1.4,    # axis labels
+  cex.main = 1.6    # title
+)
+
 plot(
-    dfbeta[, 11],
-    ylab = "dfbeta",
-    xlab = "Stebėjimo numeris",
-    main = "Sutarties tipas: dviejų metų"
-    
-  )
-  abline(h = 0, lty = 2, lwd = 2)
-  abline(h = limit, lty = 2, col = "red", lwd = 2)
-  abline(h = -limit, lty = 2, col = "red", lwd = 2)
+  dfbeta[, 11],
+  ylab = "dfbeta",
+  xlab = "Stebėjimo numeris",
+  main = "Sutarties tipas: dviejų metų"
+)
+
+abline(h = 0, lty = 2, lwd = 2)
+abline(h = limit, lty = 2, col = "red", lwd = 2)
+abline(h = -limit, lty = 2, col = "red", lwd = 2)
+
 dev.off()
+
+
+# --- Plot 2 ---
 png("./images/df_beta_interneto_paslauga.png", width = 500, height = 500)
+
+par(
+  cex = 1.2,
+  cex.axis = 1.2,
+  cex.lab = 1.4,
+  cex.main = 1.6
+)
+
 plot(
-    dfbeta[, 5],
-    ylab = "dfbeta",
-    xlab = "Stebėjimo numeris",
-    main = "Interneto paslauga: ne"
-    
-  )
-  abline(h = 0, lty = 2, lwd = 2)
-  abline(h = limit, lty = 2, col = "red", lwd = 2)
-  abline(h = -limit, lty = 2, col = "red", lwd = 2)
+  dfbeta[, 5],
+  ylab = "dfbeta",
+  xlab = "Stebėjimo numeris",
+  main = "Interneto paslauga: ne"
+)
+
+abline(h = 0, lty = 2, lwd = 2)
+abline(h = limit, lty = 2, col = "red", lwd = 2)
+abline(h = -limit, lty = 2, col = "red", lwd = 2)
+
+dev.off()
 ```
 
 <!-- TODO: Prie contractTwo year turime isskirciu jas reik pasalinti. -->
@@ -514,19 +536,30 @@ for (j in seq_len(ncol(dfbeta))) {
 par(mfrow = c(1, 1))
 
 ```
+
 ```{r}
-png("./images/dfbeta_sutarties_tipas_dvieju_metu_po_pasalinimo.png", width = 500, height = 500)
+png("./images/dfbeta_sutarties_tipas_dvieju_metu_po_pasalinimo.png",
+    width = 500, height = 500)
+
+par(
+  cex = 1.2,
+  cex.axis = 1.2,
+  cex.lab = 1.4,
+  cex.main = 1.6
+)
 
 plot(
-    dfbeta[, 11],
-    ylab = "dfbeta",
-    xlab = "Stebėjimo numeris",
-    main = "Sutarties tipas: dviejų metų"
-    
-  )
-  abline(h = 0, lty = 2, lwd = 2)
-  abline(h = limit, lty = 2, col = "red", lwd = 2)
-  abline(h = -limit, lty = 2, col = "red", lwd = 2)
+  dfbeta[, 11],
+  ylab = "dfbeta",
+  xlab = "Stebėjimo numeris",
+  main = "Sutarties tipas: dviejų metų"
+)
+
+abline(h = 0, lty = 2, lwd = 2)
+abline(h = limit, lty = 2, col = "red", lwd = 2)
+abline(h = -limit, lty = 2, col = "red", lwd = 2)
+
+dev.off()
 ```
 
 ```{r}
@@ -544,7 +577,7 @@ print(summary(model))
 
 model2<- coxph(
   Surv(tenure, Churn) ~ 
-    PartnerYes + PhoneServiceYes + MultipleLinesYes + 
+    PartnerYes + PhoneServiceYes + MultipleLinesYes +
     InternetService  + DeviceProtectionYes +
     StreamingTVYes + StreamingMoviesYes + Contract  + PaymentMethod + TotalCharges,
   data = train
@@ -570,49 +603,53 @@ for (j in seq_len(ncol(dfbeta))) {
 
 par(mfrow = c(1, 1))
 ```
-```{r}
 
-summary(model2)
-```
 
 ```{r}
+png("./images/totalcharges_martingale.png",
+    width = 1000, height = 500)
 
-res <- residuals(model2, type = "martingale")
+par(
+  mfrow = c(1, 2),
+  oma = c(0, 0, 1.5, 0),   # remove outer spacing completely
+  mar = c(4, 4, 1, 1),   # tighten plot margins
+  cex = 1.3,
+  cex.axis = 1.2,
+  cex.lab = 1.4
+)
 
-X <- model.matrix(model2)[, "TotalCharges", drop = FALSE]
-b <- coef(model2)["TotalCharges"]
-png("./images/totalcharges_martingale.png", width = 750, height = 500)
-
-par(mfrow = c(1, 2), oma = c(0, 0, 3, 0))
-
+# --- Plot 1 ---
 plot(
   X[, "TotalCharges"], res,
   xlab = "Bendra suma",
   ylab = "Liekanos",
-  col = rgb(0, 0, 0, alpha = 0.05),
+  col = rgb(0, 0, 0, alpha = 0.05)
 )
+
 abline(h = 0, lty = 2, lwd = 2)
 lines(lowess(X[, "TotalCharges"], res, iter = 0), lwd = 2)
 
+# --- Plot 2 ---
 cr <- b * X[, "TotalCharges"] + res
 
 plot(
   X[, "TotalCharges"], cr,
   xlab = "Bendra suma",
   ylab = "Trendo komponentė + liekanos",
-  col = rgb(0, 0, 0, alpha = 0.05),
+  col = rgb(0, 0, 0, alpha = 0.05)
 )
+
 abline(lm(cr ~ X[, "TotalCharges"]), lty = 2, lwd = 2)
 lines(lowess(X[, "TotalCharges"], cr, iter = 0), lwd = 2)
 
 mtext(
   "Bendra kliento sumokėta suma: martingalų liekanos",
   outer = TRUE,
-  cex = 1.2,
+  cex = 2,
   font = 2
 )
 
-par(mfrow = c(1, 1), oma = c(0, 0, 0, 0))
+dev.off()
 ```
 
 
@@ -620,9 +657,11 @@ par(mfrow = c(1, 1), oma = c(0, 0, 0, 0))
 ph_test <- cox.zph(model2)
 print(ph_test)
 ```
+
 ```{r}
 plot(ph_test)
 ```
+
 ```{r}
 
 png("./images/PartnerYes.png", width = 750, height = 500)
@@ -634,6 +673,7 @@ plot(
 )
 
 ```
+
 Grafikai ir testas rodo, kad yra kovariančių priklausomumas nuo laiko. Reikės naudoti apibendrintą Cox modelį.
 
 
