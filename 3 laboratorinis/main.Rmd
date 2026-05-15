@@ -142,7 +142,7 @@ data %>% summarise(
   censored_pct = round(100 * sum(Churn == 0)) / n(), 2)
 ```
 
-73 % klientų išliko klientai už cenzūravimo ribos.
+73 % klientų išliko klientais už cenzūravimo ribos.
 Daug žmonių nutraukia paslaugas per pirmuosius 1-2 mėnesių, o po to įvykiai pasiskirsto tolygiau. Churnintu yra maziau nei nechurnintu visada.
 
 ```{r}
@@ -439,6 +439,34 @@ for (j in seq_len(ncol(dfbeta))) {
 
 par(mfrow = c(1, 1))
 ```
+```{r}
+dev.off()
+png("./images/dfbeta_sutarties_tipas_dveju_metu.png", width = 500, height = 500)
+par(mfrow = c(1, 1))
+plot(
+    dfbeta[, 11],
+    ylab = "dfbeta",
+    xlab = "Stebėjimo numeris",
+    main = "Sutarties tipas: dviejų metų"
+    
+  )
+  abline(h = 0, lty = 2, lwd = 2)
+  abline(h = limit, lty = 2, col = "red", lwd = 2)
+  abline(h = -limit, lty = 2, col = "red", lwd = 2)
+dev.off()
+png("./images/df_beta_interneto_paslauga.png", width = 500, height = 500)
+plot(
+    dfbeta[, 5],
+    ylab = "dfbeta",
+    xlab = "Stebėjimo numeris",
+    main = "Interneto paslauga: ne"
+    
+  )
+  abline(h = 0, lty = 2, lwd = 2)
+  abline(h = limit, lty = 2, col = "red", lwd = 2)
+  abline(h = -limit, lty = 2, col = "red", lwd = 2)
+```
+
 <!-- TODO: Prie contractTwo year turime isskirciu jas reik pasalinti. -->
 ```{r, isskirciu salinimas}
 outliers_contractTwo <- which(abs(dfbeta[, "ContractTwo year"]) > limit)
@@ -486,6 +514,26 @@ for (j in seq_len(ncol(dfbeta))) {
 par(mfrow = c(1, 1))
 
 ```
+```{r}
+png("./images/dfbeta_sutarties_tipas_dvieju_metu_po_pasalinimo.png", width = 500, height = 500)
+
+plot(
+    dfbeta[, 11],
+    ylab = "dfbeta",
+    xlab = "Stebėjimo numeris",
+    main = "Sutarties tipas: dviejų metų"
+    
+  )
+  abline(h = 0, lty = 2, lwd = 2)
+  abline(h = limit, lty = 2, col = "red", lwd = 2)
+  abline(h = -limit, lty = 2, col = "red", lwd = 2)
+```
+
+```{r}
+
+outliers_post<- which(abs(dfbeta[, "ContractTwo year"]) > limit)
+print(length(outliers_post))
+```
 
 
 ```{r fit-cox, echo=FALSE}
@@ -525,39 +573,43 @@ par(mfrow = c(1, 1))
 
 
 ```{r}
+
 res <- residuals(model2, type = "martingale")
 
 X <- model.matrix(model2)[, "TotalCharges", drop = FALSE]
 b <- coef(model2)["TotalCharges"]
+png("./images/totalcharges_martingale.png", width = 750, height = 500)
 
-par(mfrow = c(1, 2))
+par(mfrow = c(1, 2), oma = c(0, 0, 3, 0))
 
-# Martingale residual plot
 plot(
   X[, "TotalCharges"], res,
-  xlab = "TotalCharges",
-  ylab = "Martingale residuals",
-  main = "Residuals: TotalCharges",
-  col = rgb(0, 0, 0, alpha = 0.05)
-  
+  xlab = "Bendra suma",
+  ylab = "Liekanos",
+  col = rgb(0, 0, 0, alpha = 0.05),
 )
 abline(h = 0, lty = 2, lwd = 2)
 lines(lowess(X[, "TotalCharges"], res, iter = 0), lwd = 2)
 
-# Component-plus-residual plot
 cr <- b * X[, "TotalCharges"] + res
 
 plot(
   X[, "TotalCharges"], cr,
-  xlab = "TotalCharges",
-  ylab = "Component + residual",
-  main = "C+R: TotalCharges",
-  col=rgb(0, 0, 0, alpha=0.05)
+  xlab = "Bendra suma",
+  ylab = "Trendo komponentė + liekanos",
+  col = rgb(0, 0, 0, alpha = 0.05),
 )
 abline(lm(cr ~ X[, "TotalCharges"]), lty = 2, lwd = 2)
 lines(lowess(X[, "TotalCharges"], cr, iter = 0), lwd = 2)
 
-par(mfrow = c(1, 1))
+mtext(
+  "Bendra kliento sumokėta suma: martingalų liekanos",
+  outer = TRUE,
+  cex = 1.2,
+  font = 2
+)
+
+par(mfrow = c(1, 1), oma = c(0, 0, 0, 0))
 ```
 
 
@@ -659,10 +711,10 @@ test.long <- unfold_churn(test, time = "tenure", event = "Churn")
 
 
 ```{r}
-test.long$risk_score <- predict(
+test.long$risk_score_2 <- predict(
   general_model_time,
   newdata = test.long,
-  type = "lp"
+  type = "risk"
 )
 ```
 
