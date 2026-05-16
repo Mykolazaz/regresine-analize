@@ -19,12 +19,12 @@ library(car)
 
 Ar logiška naudoti monthly billing ir total billing?
 
-
 ```{r}
 data <- read_csv("./churn.csv")
 ```
 
-# Data cleaning 
+# Data cleaning
+
 ```{r load-data}
 categorical_vars <- c(
 	"gender",
@@ -66,12 +66,14 @@ data.frame(
   na_count = colSums(is.na(data))
 )
 ```
+
 ```{r}
 data[is.na(data$TotalCharges), ]
 
 ```
 
 Turime praleistų reikšmių TotalCharges, jas pasalinsime
+
 ```{r}
 data<-data[!is.na(data$TotalCharges), ]
 ```
@@ -80,41 +82,50 @@ data<-data[!is.na(data$TotalCharges), ]
 ```
 
 # EDA
+
 ```{r helper-functions, echo=FALSE}
 freq_table <- function(x) {
+  x<- as.vector(x)
 	tab <- as.data.frame(table(x, useNA = "ifany"), stringsAsFactors = FALSE)
 	names(tab) <- c("Kategorija", "Kiekis")
 	tab$Procentai <- round(100 * tab$Kiekis / sum(tab$Kiekis), 2)
 	tab
 }
 
-show_categorical <- function(var_name) {
-	x <- data[[var_name]]
-	# print(knitr::kable(freq_table(x), caption = paste("Dažnių lentelė: ", var_name)))
+show_categorical <- function(var_name, label = var_name, level_labels = NULL) {
+  x <- data[[var_name]]
   print(freq_table(x))
-	fit <- survfit(
-		as.formula(paste0("Surv(tenure, Churn) ~ ", var_name)),
-		data = data, conf.type = "log-log"
-	)
-
-	plot(
-		fit,
-		col = seq_len(length(levels(x))),
-		lwd = 2,
-		xlab = "Tenure, months",
-		ylab = "Survival probability",
-		main = paste("Kaplan-Meier curves by", var_name),
-		mark.time = FALSE,
-		conf.int = FALSE
-	)
-	legend(
-		"topright",
-		legend = levels(x),
-		col = seq_len(length(levels(x))),
-		lwd = 2,
-		bty = "n"
-	)
+  
+  lvls <- if (is.factor(x)) levels(x) else sort(unique(na.omit(x))) 
+  
+  fit <- survfit(
+    as.formula(paste0("Surv(tenure, Churn) ~ ", var_name)),
+    data = data
+  )
+  
+  legend_labels <- if (!is.null(level_labels)) level_labels else lvls
+  
+  plot(
+    fit,
+    col = seq_len(length(lvls)),
+    lwd = 2,
+    xlab = "Paslaugų trukmė (mėnesiais)",
+    ylab = "Išgyvenamumo tikimybė",
+    main = paste("Kaplano-Majerio kreivės (", label, ")"),
+    mark.time = FALSE,
+    conf.int = FALSE,
+    cex.axis = 1.2,
+    cex.lab  = 1.2
+  )
+  legend(
+    "bottomleft",
+    legend = legend_labels,
+    col = seq_len(length(lvls)),
+    lwd = 2,
+    bty = "n"
+  )
 }
+
 
 show_continuous <- function(var_name) {
 	x <- data[[var_name]]
@@ -151,79 +162,312 @@ colSums(is.na(data))
 
 ## gender
 
-```{r gender-section, echo=FALSE}
-show_categorical("gender")
+```{r}
+table(data$gender)
 ```
+
+```{r}
+ggplot(data, aes(x = gender, y = tenure, fill = gender)) +
+  geom_boxplot(width = 0.4) +
+  scale_fill_manual(values = c("Female" = "pink", "Male" = "lightblue")) +
+  scale_x_discrete(labels = c("Female" = "Moteris", "Male" = "Vyras")) +
+  labs(
+    x = "Lytis",
+    y = "Paslaugų trukmė (mėnesiais)"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "none",
+    aspect.ratio = 1,
+    axis.text = element_text(size = 12),   # reikšmės (tick labels)
+    axis.title = element_text(size = 12)   # ašių pavadinimai
+  )
+
+ggsave("boxplot_gender.png", width = 4, height = 4, dpi = 300, bg = "white")
+```
+
+```{r gender-section, echo=FALSE}
+par(pty = "s") 
+show_categorical("gender",label="Lytis", level_labels = c("Moteris", "Vyras"))
+p <- recordPlot()
+png("km_gender.png", width = 5, height = 5, units = "in", res = 300, bg = "white")
+replayPlot(p)
+dev.off()
+```
+
 ```{r}
 survdiff(Surv(tenure, Churn) ~ data$gender, data = data,rho=1)
 ```
 
 ## SeniorCitizen
 
-```{r seniorcitizen-section, echo=FALSE}
-show_categorical("SeniorCitizen")
+```{r}
+ggplot(data, aes(x = SeniorCitizen, y = tenure, fill = SeniorCitizen)) +
+  geom_boxplot(width = 0.4) +
+  scale_fill_manual(values = c("Yes" = "lightgreen", "No" = "coral")) +
+  scale_x_discrete(labels = c("Yes" = "Taip", "No" = "Ne")) +
+  labs(
+    x = "Pensininkas",
+    y = "Paslaugų trukmė (mėnesiais)"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "none",
+    aspect.ratio = 1,
+    axis.text = element_text(size = 12),   
+    axis.title = element_text(size = 12)  
+  )
+
+ggsave("boxplot_senior.png", width = 4, height = 4, dpi = 300, bg = "white")
 ```
+
+```{r seniorcitizen-section, echo=FALSE}
+show_categorical("SeniorCitizen", label="Pensininkas", level_labels = c("Ne", "Taip"))
+p <- recordPlot()
+png("km_senior.png", width = 5, height = 5, units = "in", res = 300, bg = "white")
+replayPlot(p)
+dev.off()
+```
+
 ```{r}
 survdiff(Surv(tenure, Churn) ~ data$SeniorCitizen, data = data,rho=0)
 ```
+
 ## Partner
 
-```{r partner-section, echo=FALSE}
-show_categorical("Partner")
+```{r}
+ggplot(data, aes(x = Partner, y = tenure, fill = Partner)) +
+  geom_boxplot(width = 0.4) +
+  scale_fill_manual(values = c("Yes" = "lightgreen", "No" = "coral")) +
+  scale_x_discrete(labels = c("Yes" = "Taip", "No" = "Ne")) +
+  labs(
+    x = "Partneris",
+    y = "Paslaugų trukmė (mėnesiais)"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "none",
+    aspect.ratio = 1,
+    axis.text = element_text(size = 12),   # reikšmės (tick labels)
+    axis.title = element_text(size = 12)   # ašių pavadinimai
+  )
+
+ggsave("boxplot_partner.png", width = 4, height = 4, dpi = 300, bg = "white")
 ```
+
+```{r partner-section, echo=FALSE}
+show_categorical("Partner", label="Partneris", level_labels=c("Neturi", "Turi"))
+p <- recordPlot()
+png("km_partner.png", width = 5, height = 5, units = "in", res = 300, bg = "white")
+replayPlot(p)
+dev.off()
+```
+
 ```{r}
 survdiff(Surv(tenure, Churn) ~ data$Partner, data = data,rho=0)
 ```
+
 ## Dependents
 
-```{r dependents-section, echo=FALSE}
-show_categorical("Dependents")
+```{r}
+ggplot(data, aes(x = Dependents, y = tenure, fill = Dependents)) +
+  geom_boxplot(width = 0.4) +
+  scale_fill_manual(values = c("Yes" = "lightgreen", "No" = "coral")) +
+  scale_x_discrete(labels = c("Yes" = "Taip", "No" = "Ne")) +
+  labs(
+    x = "Vaikai",
+    y = "Paslaugų trukmė (mėnesiais)"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "none",
+    aspect.ratio = 1,
+    axis.text = element_text(size = 12),   # reikšmės (tick labels)
+    axis.title = element_text(size = 12)   # ašių pavadinimai
+  )
+
+ggsave("boxplot_vaikai.png", width = 4, height = 4, dpi = 300, bg = "white")
 ```
+
+```{r dependents-section, echo=FALSE}
+show_categorical("Dependents", "Vaikai", c("Ne", "Taip"))
+p <- recordPlot()
+png("km_vaikai.png", width = 5, height = 5, units = "in", res = 300, bg = "white")
+replayPlot(p)
+dev.off()
+```
+
 ```{r}
 survdiff(Surv(tenure, Churn) ~ data$Dependents, data = data,rho=1)
 ```
 
 ## PhoneService
 
+```{r}
+ggplot(data, aes(x = PhoneService, y = tenure, fill = PhoneService)) +
+  geom_boxplot(width = 0.4) +
+  scale_fill_manual(values = c("Yes" = "lightgreen", "No" = "coral")) +
+  scale_x_discrete(labels = c("Yes" = "Taip", "No" = "Ne")) +
+  labs(
+    x = "Tel. paslaugos",
+    y = "Paslaugų trukmė (mėnesiais)"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "none",
+    aspect.ratio = 1,
+    axis.text = element_text(size = 12),   
+    axis.title = element_text(size = 12) 
+  )
+
+ggsave("boxplot_phoneservice.png", width = 4, height = 4, dpi = 300, bg = "white")
+```
+
 ```{r phoneservice-section, echo=FALSE}
-show_categorical("PhoneService")
+show_categorical("PhoneService", "Tel. paslauga", c("Nesinaudoja", "Naudojasi"))
+p <- recordPlot()
+png("km_phone_service.png", width = 5, height = 5, units = "in", res = 300, bg = "white")
+replayPlot(p)
+dev.off()
 ```
 
 ```{r}
 survdiff(Surv(tenure, Churn) ~ data$PhoneService, data = data,rho=1)
 
 ```
+
 ## MultipleLines
 
-```{r multiplelines-section, echo=FALSE}
-show_categorical("MultipleLines")
+```{r}
+ggplot(data, aes(x = MultipleLines, y = tenure, fill = MultipleLines)) +
+  geom_boxplot(width = 0.4) +
+  scale_fill_manual(values = c("Yes" = "lightgreen", "No" = "coral")) +
+  scale_x_discrete(labels = c("Yes" = "Taip", "No" = "Ne")) +
+  labs(
+    x = "Linijos",
+    y = "Paslaugų trukmė (mėnesiais)"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "none",
+    aspect.ratio = 1,
+    axis.text = element_text(size = 12),   
+    axis.title = element_text(size = 12)  
+  )
+
+ggsave("boxplot_lines.png", width = 4, height = 4, dpi = 300, bg = "white")
 ```
+
+```{r multiplelines-section, echo=FALSE}
+show_categorical("MultipleLines", "Tel. linijos", c("Ne", "Taip"))
+p <- recordPlot()
+png("km_linijos.png", width = 5, height = 5, units = "in", res = 300, bg = "white")
+replayPlot(p)
+dev.off()
+```
+
 ```{r}
 survdiff(Surv(tenure, Churn) ~ data$MultipleLines, data = data,rho=0)
 
 ```
+
 ## InternetService
 
-```{r internetservice-section, echo=FALSE}
-show_categorical("InternetService")
+```{r}
+ggplot(data, aes(x = InternetService, y = tenure, fill = InternetService)) +
+  geom_boxplot(width = 0.4) +
+  scale_fill_manual(values = c("DSL" = "lightgreen", "Fiber optic" = "lightblue", "No" = "coral")) +
+  scale_x_discrete(labels = c("DSL" = "DSL", "Fiber optic" = "Šviesolaidis", "No" = "Nėra")) +
+  labs(
+    x = "Intern. paslaugos",
+    y = "Paslaugų trukmė (mėnesiais)"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "none",
+    aspect.ratio = 1,
+    axis.text = element_text(size = 12),   # reikšmės (tick labels)
+    axis.title = element_text(size = 12)   # ašių pavadinimai
+  )
+
+ggsave("boxplot_internet_servie.png", width = 4, height = 4, dpi = 300, bg = "white")
 ```
+
+```{r internetservice-section, echo=FALSE}
+show_categorical("InternetService", "Intern. paslauga", c("DSL", "Šviesolaidis", "Nėra"))
+p <- recordPlot()
+png("km_interneto_paslauga.png", width = 5, height = 5, units = "in", res = 300, bg = "white")
+replayPlot(p)
+dev.off()
+```
+
 ```{r}
 survdiff(Surv(tenure, Churn) ~ data$InternetService, data = data,rho=0)
 
 ```
+
 ## OnlineSecurity
 
-```{r onlinesecurity-section, echo=FALSE}
-show_categorical("OnlineSecurity")
+```{r}
+ggplot(data, aes(x = OnlineSecurity, y = tenure, fill = OnlineSecurity)) +
+  geom_boxplot(width = 0.4) +
+  scale_fill_manual(values = c("Yes" = "lightgreen", "No" = "coral")) +
+  scale_x_discrete(labels = c("Yes" = "Taip", "No" = "Ne")) +
+  labs(
+    x = "Intern. apsauga",
+    y = "Paslaugų trukmė (mėnesiais)"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "none",
+    aspect.ratio = 1,
+    axis.text = element_text(size = 12),   # reikšmės (tick labels)
+    axis.title = element_text(size = 12)   # ašių pavadinimai
+  )
+
+ggsave("boxplot_online_security.png", width = 4, height = 4, dpi = 300, bg = "white")
 ```
+
+```{r onlinesecurity-section, echo=FALSE}
+show_categorical("OnlineSecurity", "Intern. apsauga", c("Ne", "Taip"))
+p <- recordPlot()
+png("km_online_security.png", width = 5, height = 5, units = "in", res = 300, bg = "white")
+replayPlot(p)
+dev.off()
+```
+
 ```{r}
 survdiff(Surv(tenure, Churn) ~ data$OnlineSecurity, data = data,rho=0)
 ```
 
 ## OnlineBackup
 
+```{r}
+ggplot(data, aes(x = OnlineBackup, y = tenure, fill = OnlineBackup)) +
+  geom_boxplot(width = 0.4) +
+  scale_fill_manual(values = c("Yes" = "lightgreen", "No" = "coral")) +
+  scale_x_discrete(labels = c("Yes" = "Taip", "No" = "Ne")) +
+  labs(
+    x = "Intern. kopija",
+    y = "Paslaugų trukmė (mėnesiais)"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "none",
+    aspect.ratio = 1,
+    axis.text = element_text(size = 12),   # reikšmės (tick labels)
+    axis.title = element_text(size = 12)   # ašių pavadinimai
+  )
+
+ggsave("boxplot_online_backup.png", width = 4, height = 4, dpi = 300, bg = "white")
+```
+
 ```{r onlinebackup-section, echo=FALSE}
-show_categorical("OnlineBackup")
+show_categorical("OnlineBackup", "Intern. kopija", c("Ne", "Taip"))
+p <- recordPlot()
+png("km_online_backup.png", width = 5, height = 5, units = "in", res = 300, bg = "white")
+replayPlot(p)
+dev.off()
 ```
 
 ```{r}
@@ -233,61 +477,240 @@ survdiff(Surv(tenure, Churn) ~ data$OnlineBackup, data = data,rho=0)
 
 ## DeviceProtection
 
-```{r deviceprotection-section, echo=FALSE}
-show_categorical("DeviceProtection")
+```{r}
+ggplot(data, aes(x = DeviceProtection, y = tenure, fill = DeviceProtection)) +
+  geom_boxplot(width = 0.4) +
+  scale_fill_manual(values = c("Yes" = "lightgreen", "No" = "coral")) +
+  scale_x_discrete(labels = c("Yes" = "Taip", "No" = "Ne")) +
+  labs(
+    x = "Įreng. apsauga",
+    y = "Paslaugų trukmė (mėnesiais)"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "none",
+    aspect.ratio = 1,
+    axis.text = element_text(size = 12),   # reikšmės (tick labels)
+    axis.title = element_text(size = 12)   # ašių pavadinimai
+  )
+
+ggsave("boxplot_device_protection.png", width = 4, height = 4, dpi = 300, bg = "white")
 ```
+
+```{r deviceprotection-section, echo=FALSE}
+show_categorical("DeviceProtection", "Įreng. apsauga", c("Ne", "Taip"))
+p <- recordPlot()
+png("km_device_protection.png", width = 5, height = 5, units = "in", res = 300, bg = "white")
+replayPlot(p)
+dev.off()
+```
+
 ```{r}
 survdiff(Surv(tenure, Churn) ~ data$DeviceProtection, data = data,rho=0)
 ```
 
 ## TechSupport
 
-```{r techsupport-section, echo=FALSE}
-show_categorical("TechSupport")
+```{r}
+ggplot(data, aes(x = TechSupport, y = tenure, fill = TechSupport)) +
+  geom_boxplot(width = 0.4) +
+  scale_fill_manual(values = c("Yes" = "lightgreen", "No" = "coral")) +
+  scale_x_discrete(labels = c("Yes" = "Taip", "No" = "Ne")) +
+  labs(
+    x = "Tech. pagalba",
+    y = "Paslaugų trukmė (mėnesiais)"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "none",
+    aspect.ratio = 1,
+    axis.text = element_text(size = 12),   # reikšmės (tick labels)
+    axis.title = element_text(size = 12)   # ašių pavadinimai
+  )
+
+ggsave("boxplot_tech_support.png", width = 4, height = 4, dpi = 300, bg = "white")
 ```
+
+```{r techsupport-section, echo=FALSE}
+show_categorical("TechSupport", "Tech. pagalba", c("Ne", "Taip"))
+p <- recordPlot()
+png("km_tech_support.png", width = 5, height = 5, units = "in", res = 300, bg = "white")
+replayPlot(p)
+dev.off()
+```
+
 ```{r}
 survdiff(Surv(tenure, Churn) ~ data$TechSupport, data = data,rho=0)
 ```
+
 ## StreamingTV
 
-```{r streamingtv-section, echo=FALSE}
-show_categorical("StreamingTV")
+```{r}
+ggplot(data, aes(x = StreamingTV, y = tenure, fill = StreamingTV)) +
+  geom_boxplot(width = 0.4) +
+  scale_fill_manual(values = c("Yes" = "lightgreen", "No" = "coral")) +
+  scale_x_discrete(labels = c("Yes" = "Taip", "No" = "Ne")) +
+  labs(
+    x = "Televiz. paslauga",
+    y = "Paslaugų trukmė (mėnesiais)"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "none",
+    aspect.ratio = 1,
+    axis.text = element_text(size = 12),   # reikšmės (tick labels)
+    axis.title = element_text(size = 12)   # ašių pavadinimai
+  )
+
+ggsave("boxplot_streamingtv.png", width = 4, height = 4, dpi = 300, bg = "white")
 ```
+
+```{r streamingtv-section, echo=FALSE}
+show_categorical("StreamingTV", "Televiz. paslauga", c("Ne", "Taip"))
+p <- recordPlot()
+png("km_streamingTV.png", width = 5, height = 5, units = "in", res = 300, bg = "white")
+replayPlot(p)
+dev.off()
+```
+
 ```{r}
 survdiff(Surv(tenure, Churn) ~ data$StreamingTV, data = data,rho=0)
 ```
+
 ## StreamingMovies
 
-```{r streamingmovies-section, echo=FALSE}
-show_categorical("StreamingMovies")
+```{r}
+ggplot(data, aes(x = StreamingMovies, y = tenure, fill = StreamingMovies)) +
+  geom_boxplot(width = 0.4) +
+  scale_fill_manual(values = c("Yes" = "lightgreen", "No" = "coral")) +
+  scale_x_discrete(labels = c("Yes" = "Taip", "No" = "Ne")) +
+  labs(
+    x = "Filmų paslauga",
+    y = "Paslaugų trukmė (mėnesiais)"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "none",
+    aspect.ratio = 1,
+    axis.text = element_text(size = 12),   # reikšmės (tick labels)
+    axis.title = element_text(size = 12)   # ašių pavadinimai
+  )
+
+ggsave("boxplot_filmu_paslauga.png", width = 4, height = 4, dpi = 300, bg = "white")
 ```
+
+```{r streamingmovies-section, echo=FALSE}
+show_categorical("StreamingMovies","Filmų paslauga", c("Ne", "Taip"))
+p <- recordPlot()
+png("km_streaming_movies.png", width = 5, height = 5, units = "in", res = 300, bg = "white")
+replayPlot(p)
+dev.off()
+```
+
 ```{r}
 survdiff(Surv(tenure, Churn) ~ data$StreamingMovies, data = data,rho=1)
 
 ```
+
 ## Contract
 
-```{r contract-section, echo=FALSE}
-show_categorical("Contract")
+```{r}
+ggplot(data, aes(x = Contract, y = tenure, fill = Contract)) +
+  geom_boxplot(width = 0.4) +
+  scale_fill_manual(values = c("Month-to-month" = "lightgreen", "One year" = "lightblue", "Two year" = "lightpink")) +
+  scale_x_discrete(labels = c("Month-to-month" = "Mėnesinis", "One year" = "Vienerių metų", "Two year" = "Dviejų metų")) +
+  labs(
+    x = "Kontraktas",
+    y = "Paslaugų trukmė (mėnesiais)"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "none",
+    aspect.ratio = 1,
+    axis.text = element_text(size = 12),   # reikšmės (tick labels)
+    axis.title = element_text(size = 12)   # ašių pavadinimai
+  )
+
+ggsave("boxplot_contract.png", width = 4, height = 4, dpi = 300, bg = "white")
 ```
+
+```{r contract-section, echo=FALSE}
+show_categorical("Contract", "Kontraktas", c("Mėnesinis", "Vienerių metų", "Dvejų metų"))
+p <- recordPlot()
+png("km_contract.png", width = 5, height = 5, units = "in", res = 300, bg = "white")
+replayPlot(p)
+dev.off()
+```
+
 ```{r}
 survdiff(Surv(tenure, Churn) ~ data$Contract, data = data,rho=0)
 
 ```
+
 ## PaperlessBilling
 
+```{r}
+ggplot(data, aes(x = PaperlessBilling, y = tenure, fill = PaperlessBilling)) +
+  geom_boxplot(width = 0.4) +
+  scale_fill_manual(values = c("Yes" = "lightgreen", "No" = "coral")) +
+  scale_x_discrete(labels = c("Yes" = "Taip", "No" = "Ne")) +
+  labs(
+    x = "El. sąskaita",
+    y = "Paslaugų trukmė (mėnesiais)"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "none",
+    aspect.ratio = 1,
+    axis.text = element_text(size = 12),   # reikšmės (tick labels)
+    axis.title = element_text(size = 12)   # ašių pavadinimai
+  )
+
+ggsave("boxplot_paperlessbilling.png", width = 4, height = 4, dpi = 300, bg = "white")
+```
+
 ```{r paperlessbilling-section, echo=FALSE}
-show_categorical("PaperlessBilling")
+show_categorical("PaperlessBilling", "El. sąskaita", c("Ne", "Taip"))
+p <- recordPlot()
+png("km_paperless_billing.png", width = 5, height = 5, units = "in", res = 300, bg = "white")
+replayPlot(p)
+dev.off()
 ```
 
 ```{r}
 survdiff(Surv(tenure, Churn) ~ data$PaperlessBilling, data = data,rho=0)
 ```
+
 ## PaymentMethod
 
-```{r paymentmethod-section, echo=FALSE}
-show_categorical("PaymentMethod")
+```{r}
+ggplot(data, aes(x = PaymentMethod, y = tenure, fill = PaymentMethod)) +
+  geom_boxplot(width = 0.4) +
+  scale_fill_manual(values = c("Bank transfer (automatic)" = "lightgreen", "Credit card (automatic)" = "coral", "Electronic check" ="lightblue", "Mailed check" = "pink")) +
+  scale_x_discrete(labels = c("Bank transfer (automatic)" = "Banko \n pavedimas", "Credit card (automatic)" = "Kreditinė \n kortelė", "Electronic check" = "Elektroninis \n čekis", "Mailed check" = "Fizinis \n čekis")) +
+  labs(
+    x = "Intern. kopija",
+    y = "Paslaugų trukmė (mėnesiais)"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "none",
+    aspect.ratio = 1,
+    axis.text = element_text(size = 12),   # reikšmės (tick labels)
+    axis.title = element_text(size = 12)   # ašių pavadinimai
+  )
+
+ggsave("boxplot_payment_method.png", width = 4, height = 4, dpi = 300, bg = "white")
 ```
+
+```{r paymentmethod-section, echo=FALSE}
+show_categorical("PaymentMethod", "Mokėjimo būdas", c("Banko pavedimas", "Kreditinė kortelė", "Elektroninis čekis", "Fizinis čekis"))
+p <- recordPlot()
+png("km_payment_method.png", width = 5, height = 5, units = "in", res = 300, bg = "white")
+replayPlot(p)
+dev.off()
+```
+
 ```{r}
 survdiff(Surv(tenure, Churn) ~ data$PaymentMethod, data = data,rho=0)
 
@@ -298,29 +721,42 @@ survdiff(Surv(tenure, Churn) ~ data$PaymentMethod, data = data,rho=0)
 ```{r monthlycharges-section, echo=FALSE}
 show_continuous("MonthlyCharges")
 ```
+
 ```{r}
-ggplot(data,aes(tenure,MonthlyCharges, color = factor(Churn))) +
-  geom_point(alpha=0.5) +
-  labs(x = "Laikas", y = "Monthly Charges", color = "Churn") +
-  ggtitle("Nucenzuruotų duomenų sklaidos diagrama: Tenure ir Monthly Charges") 
+ggplot(data, aes(tenure, MonthlyCharges, color = factor(Churn))) +
+  geom_point(alpha = 0.4, size = 1.5) +
+  scale_color_manual(
+    values = c("0" = "steelblue", "1" = "tomato"),
+    labels = c("0" = "Ne", "1" = "Taip")
+  ) +
+  labs(
+    x     = "Paslaugų trukmė (mėnesiais)",
+    y     = "Mėnesiniai mokesčiai (JAV $)",
+    color = "Ar atsisakė \n paslaugų?"
+  ) +
+  theme_classic(base_size = 12)
 
 ```
+
 ## TotalCharges
 
 ```{r totalcharges-section, echo=FALSE}
 show_continuous("TotalCharges")
 ```
+
 ```{r}
 ggplot(data,aes(tenure,TotalCharges, color = factor(Churn))) +
   geom_point(alpha=0.5) +
   labs(x = "Laikas", y = "Total Charges", color = "Churn") +
   ggtitle("Nucenzuruotų duomenų sklaidos diagrama: Tenure vs Total Charges") 
 ```
+
 ## tenure
 
 ```{r tenure-section, echo=FALSE}
 show_continuous("tenure")
 ```
+
 ## Churn
 
 ```{r churn-section, echo=FALSE}
@@ -328,6 +764,7 @@ print(freq_table(data$Churn))
 ```
 
 # Multicollinearity
+
 ```{r}
 data$PartnerYes <- as.numeric(data$Partner == "Yes")
 data$DependentsYes <- as.numeric(data$Dependents == "Yes")
@@ -369,7 +806,6 @@ fml <- Surv(tenure, Churn) ~
 
 cox_fit <- coxph(fml, data)
 ```
-
 
 ```{r}
 vif(cox_fit)
@@ -413,6 +849,7 @@ cat("Train rows:", nrow(train), "  Test rows:", nrow(test), "\n")
 ```
 
 # Pradinis Cox PH modelis
+
 ```{r}
 
 
@@ -445,6 +882,8 @@ for (j in seq_len(ncol(dfbeta))) {
 
 par(mfrow = c(1, 1))
 ```
+
+Prie contractTwo year turime isskirciu jas reik pasalinti.
 ```{r}
 outliers_contractTwo <- which(abs(dfbeta[, "PaymentMethodMailed check"]) > limit)
 
@@ -543,12 +982,16 @@ mtext(
 )
 ```
 
-
 ```{r}
 ph_test <- cox.zph(model)
 print(ph_test)
 ```
 
+Pridėti sąveikas: PhoneServiceYes, InternetService, log_total_charges.
+
+
+
+>>>>>>> 3264ef482682128be2f58325482a0360fa1600c2
 ```{r}
 plot(ph_test)
 ```
@@ -610,7 +1053,6 @@ dev.off()
 
 Grafikai ir testas rodo, kad yra kovariančių priklausomumas nuo laiko. Reikės naudoti apibendrintą Cox modelį.
 
-
 # Apibendrintas Cox modelis
 
 ```{r}
@@ -639,8 +1081,23 @@ train.long[1:50, ]
 ```
 
 
+```{r}
+# train.long$PartnerYes <- as.numeric(train.long$Partner == "Yes")
+# train.long$DependentsYes <- as.numeric(train.long$Dependents == "Yes")
+# train.long$PhoneServiceYes <- as.numeric(train.long$PhoneService == "Yes")
+# train.long$MultipleLinesYes <- as.numeric(train.long$MultipleLines == "Yes")
+# train.long$OnlineSecurityYes <- as.numeric(train.long$OnlineSecurity == "Yes")
+# train.long$DeviceProtectionYes <- as.numeric(train.long$DeviceProtection == "Yes")
+# train.long$StreamingTVYes <- as.numeric(train.long$StreamingTV == "Yes")
+# train.long$StreamingMoviesYes <- as.numeric(train.long$StreamingMovies == "Yes")
+# train.long$PaperlessBillingYes <- as.numeric(train.long$PaperlessBilling == "Yes")
+```
 
 
+Pridėti sąveikas: PhoneServiceYes, InternetService, log_total_charges.
+
+
+>>>>>>> 3264ef482682128be2f58325482a0360fa1600c2
 ```{r}
 general_model_time <- coxph(
   Surv(start, stop, Churn) ~ 
@@ -664,19 +1121,21 @@ test.long <- unfold_churn(test, time = "tenure", event = "Churn")
 
 
 ```{r}
-lp_train <- predict(general_model_time, newdata = train.long, type = "lp")
-lp_test  <- predict(general_model_time, newdata = test.long, type = "lp")
-
-conc_train <- concordance(
-  Surv(start, stop, Churn) ~ lp_train,
-  data = train.long,
-  reverse = TRUE
+test.long$risk_score <- predict(
+  general_model_time,
+  newdata = test.long,
+  type = "lp"
 )
 
-conc_test <- concordance(
-  Surv(start, stop, Churn) ~ lp_test,
-  data = test.long,
-  reverse = TRUE
+test_risk <- test.long %>%
+  group_by(customerID) %>%
+  slice_tail(n = 1) %>%
+  ungroup()
+test_risk$risk_score_neg <- -test_risk$risk_score
+
+c_index_test <- concordance(
+  Surv(tenure, Churn) ~ risk_score_neg,
+  data = test_risk
 )
 
 data.frame(
