@@ -729,7 +729,7 @@ general_model_time <- coxph(
     stop:(PhoneServiceYes + MultipleLinesYes +
           InternetService +  DeviceProtectionYes +
           StreamingTVYes + StreamingMoviesYes +
-           PaymentMethod + TotalCharges + PartnerYes
+           PaymentMethod + TotalCharges
           ),
   data = train.long
 )
@@ -777,7 +777,7 @@ test.long <- unfold_churn(test, time = "tenure", event = "Churn")
 
 
 test.long$risk_score <- predict(
-  general_model_time,
+  general_model_time_2,
   newdata = test.long,
   type = "lp"
 )
