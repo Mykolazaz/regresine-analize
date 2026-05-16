@@ -606,6 +606,11 @@ par(mfrow = c(1, 1))
 
 
 ```{r}
+res <- residuals(model2, type = "martingale")
+
+X <- model.matrix(model2)[, "TotalCharges", drop = FALSE]
+b <- coef(model2)["TotalCharges"]
+
 png("./images/totalcharges_martingale.png",
     width = 1000, height = 500)
 
@@ -663,15 +668,21 @@ plot(ph_test)
 ```
 
 ```{r}
-
 png("./images/PartnerYes.png", width = 750, height = 500)
+
+par(
+  cex = 1.3,
+  cex.axis = 1.2,
+  cex.lab = 1.4
+)
+
 plot(
   ph_test[1],
   xlab = "Laikas",
-  ylab = "Koeficiento pokytis",
-  main = "PartnerYes koeficiento pokytis per laiką"
+  ylab = "Koeficiento reikšmė"
 )
 
+dev.off()
 ```
 
 Grafikai ir testas rodo, kad yra kovariančių priklausomumas nuo laiko. Reikės naudoti apibendrintą Cox modelį.
