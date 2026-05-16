@@ -387,14 +387,6 @@ print(summary(cox_step))
 Dar vis po pazingsnines lieka nereiksmingu, tad jos taip pat reiktu ismest.
 
 ```{r}
-cat("\nPH prielaidos tikrinimas:\n")
-ph_test_step <- cox.zph(cox_step)
-print(ph_test_step)
-plot(ph_test_step)
-
-```
-
-```{r}
 vif(cox_step)
 ```
 # Train-test split
@@ -582,26 +574,26 @@ model2<- coxph(
     StreamingTVYes + StreamingMoviesYes + Contract  + PaymentMethod + TotalCharges,
   data = train
 )
-dfbeta <- residuals(model2, type = "dfbeta")
-colnames(dfbeta) <- names(model2$coefficients)
-n <- nrow(dfbeta)
-limit <- 2 / sqrt(n)
-
-par(mfrow = c(2, 2))
-
-for (j in seq_len(ncol(dfbeta))) {
-  plot(
-    dfbeta[, j],
-    ylab = colnames(dfbeta)[j],
-    xlab = "Stebėjimo numeris",
-    main = colnames(dfbeta)[j]
-  )
-  abline(h = 0, lty = 2, lwd = 2)
-  abline(h = limit, lty = 2, col = "red", lwd = 2)
-  abline(h = -limit, lty = 2, col = "red", lwd = 2)
-}
-
-par(mfrow = c(1, 1))
+# dfbeta <- residuals(model2, type = "dfbeta")
+# colnames(dfbeta) <- names(model2$coefficients)
+# n <- nrow(dfbeta)
+# limit <- 2 / sqrt(n)
+# 
+# par(mfrow = c(2, 2))
+# 
+# for (j in seq_len(ncol(dfbeta))) {
+#   plot(
+#     dfbeta[, j],
+#     ylab = colnames(dfbeta)[j],
+#     xlab = "Stebėjimo numeris",
+#     main = colnames(dfbeta)[j]
+#   )
+#   abline(h = 0, lty = 2, lwd = 2)
+#   abline(h = limit, lty = 2, col = "red", lwd = 2)
+#   abline(h = -limit, lty = 2, col = "red", lwd = 2)
+# }
+# 
+# par(mfrow = c(1, 1))
 ```
 
 
