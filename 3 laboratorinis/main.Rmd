@@ -822,9 +822,7 @@ cox_step <- stepAIC(
   direction = "backward",
   trace = FALSE
 )
-# 
-# cat("\nGalutinis pažingsninės Cox regresijos modelis:\n")
-# print(formula(cox_step))
+
 
 cat("\nModelio santrauka:\n")
 print(summary(cox_step))
@@ -883,6 +881,28 @@ for (j in seq_len(ncol(dfbeta))) {
 par(mfrow = c(1, 1))
 ```
 
+
+```{r}
+png("./images/dfbeta_PaymentMethod.png",
+    width = 1000, height = 500)
+par(
+  mfrow = c(1, 1),
+  cex = 1.2,        # overall scaling
+  cex.axis = 1.2,   # tick labels
+  cex.lab = 1.4,    # axis labels
+  cex.main = 1.6    # title
+)
+
+plot(
+    dfbeta[, 13],
+    ylab = "dfbeta",
+    xlab = "Stebėjimo numeris",
+    main = "Mokėjimo metodas: atsiunčiamas čekis"
+  )
+  abline(h = 0, lty = 2, lwd = 2)
+  abline(h = limit, lty = 2, col = "red", lwd = 2)
+  abline(h = -limit, lty = 2, col = "red", lwd = 2)
+```
 Prie contractTwo year turime isskirciu jas reik pasalinti.
 ```{r}
 outliers_contractTwo <- which(abs(dfbeta[, "PaymentMethodMailed check"]) > limit)
@@ -953,7 +973,7 @@ par(
 # --- Plot 1 ---
 plot(
   X[, "MonthlyCharges"], res,
-  xlab = "Bendra suma",
+  xlab = "Kaina",
   ylab = "Liekanos",
   col = rgb(0, 0, 0, alpha = 0.05)
 )
@@ -975,7 +995,7 @@ abline(lm(cr ~ X[, "MonthlyCharges"]), lty = 2, lwd = 2)
 lines(lowess(X[, "MonthlyCharges"], cr, iter = 0), lwd = 2)
 
 mtext(
-  "Bendra kliento sumokėta suma: martingalų liekanos",
+  "Mėnesio kaina už paslaugas: martingalų liekanos",
   outer = TRUE,
   cex = 2,
   font = 2
@@ -989,12 +1009,65 @@ print(ph_test)
 
 Pridėti sąveikas: PhoneServiceYes, InternetService, log_total_charges.
 
+MultipleLinesYes  + ContractGrouped + MonthlyCharges + PhoneServiceYes
 
-
->>>>>>> 3264ef482682128be2f58325482a0360fa1600c2
 ```{r}
 plot(ph_test)
 ```
+
+
+```{r}
+png(
+  "./images/Contract.png",
+  width = 7.5,
+  height = 5,
+  units = "in",
+  res = 300
+)
+
+par(
+  cex = 1.3,
+  cex.axis = 1.2,
+  cex.lab = 1.4,
+  cex.main = 1.4,
+  lwd = 2
+)
+
+plot(
+  ph_test[8],
+  xlab = "Laikas",
+  ylab = "Koeficiento reikšmė",
+  col = "black",
+  lwd = 2
+)
+
+abline(h = 0, lty = 2, lwd = 2, col = "gray40")
+
+dev.off()
+```
+
+```{r}
+png("./images/PhoneService.png", width = 750, height = 500)
+par(
+  cex = 1.3,
+  cex.axis = 1.2,
+  cex.lab = 1.4,
+  cex.main = 1.4,
+  lwd = 1)
+
+
+plot(
+  ph_test[2],
+  xlab = "Laikas",
+  ylab = "Koeficiento reikšmė",
+  lwd = 2
+)
+abline(h = 0, lty = 2, lwd = 2, col = "gray40")
+
+dev.off()
+```
+
+
 
 ```{r}
 png("./images/MultipleLines.png", width = 750, height = 500)
@@ -1002,51 +1075,19 @@ png("./images/MultipleLines.png", width = 750, height = 500)
 par(
   cex = 1.3,
   cex.axis = 1.2,
-  cex.lab = 1.4
+  cex.lab = 1.4,
+  cex.main = 1.4,
+  lwd = 2
 )
 
 plot(
   ph_test[3],
   xlab = "Laikas",
-  ylab = "Koeficiento reikšmė"
-)
-
-dev.off()
-```
-
-```{r}
-png("./images/DeviceProtectionYes.png", width = 750, height = 500)
-
-par(
-  cex = 1.3,
-  cex.axis = 1.2,
-  cex.lab = 1.4
-)
-
-plot(
-  ph_test[5],
-  xlab = "Laikas",
-  ylab = "Koeficiento reikšmė"
-)
-
-dev.off()
-```
-
-```{r}
-png("./images/Contract.png", width = 750, height = 500)
-
-par(
-  cex = 1.3,
-  cex.axis = 1.2,
-  cex.lab = 1.4
-)
-
-plot(
-  ph_test[8],
-  xlab = "Laikas",
   ylab = "Koeficiento reikšmė",
-  col = rgb(0, 0, 0, alpha = 0.05)
+    col = "black",
+  lwd = 2
 )
+abline(h = 0, lty = 2, lwd = 2, col = "gray40")
 
 dev.off()
 ```
@@ -1081,23 +1122,24 @@ train.long[1:50, ]
 ```
 
 
-```{r}
-# train.long$PartnerYes <- as.numeric(train.long$Partner == "Yes")
-# train.long$DependentsYes <- as.numeric(train.long$Dependents == "Yes")
-# train.long$PhoneServiceYes <- as.numeric(train.long$PhoneService == "Yes")
-# train.long$MultipleLinesYes <- as.numeric(train.long$MultipleLines == "Yes")
-# train.long$OnlineSecurityYes <- as.numeric(train.long$OnlineSecurity == "Yes")
-# train.long$DeviceProtectionYes <- as.numeric(train.long$DeviceProtection == "Yes")
-# train.long$StreamingTVYes <- as.numeric(train.long$StreamingTV == "Yes")
-# train.long$StreamingMoviesYes <- as.numeric(train.long$StreamingMovies == "Yes")
-# train.long$PaperlessBillingYes <- as.numeric(train.long$PaperlessBilling == "Yes")
-```
-
-
 Pridėti sąveikas: PhoneServiceYes, InternetService, log_total_charges.
+Payment,paperless,techsupport,device,online,internet,phonespartner,
+```{r}
+general_model_time_temp <- coxph(
+  Surv(start, stop, Churn) ~ 
+     PartnerYes + MultipleLinesYes + PhoneServiceYes+
+    InternetService + OnlineSecurityYes + DeviceProtectionYes +
+    TechSupportYes  + PaperlessBillingYes+ContractGrouped +
+    PaymentMethod + MonthlyCharges+
+    stop:(PartnerYes + MultipleLinesYes + PhoneServiceYes+
+    InternetService + OnlineSecurityYes + DeviceProtectionYes +
+    TechSupportYes  + PaperlessBillingYes+ContractGrouped +
+    PaymentMethod + MonthlyCharges),  data = train.long
+)
 
+summary(general_model_time_temp)
 
->>>>>>> 3264ef482682128be2f58325482a0360fa1600c2
+```
 ```{r}
 general_model_time <- coxph(
   Surv(start, stop, Churn) ~ 
@@ -1106,7 +1148,7 @@ general_model_time <- coxph(
     TechSupportYes  + PaperlessBillingYes+ContractGrouped +
     PaymentMethod + MonthlyCharges+
     stop:(MultipleLinesYes  +
-     ContractGrouped + MonthlyCharges),
+     ContractGrouped + MonthlyCharges + PhoneServiceYes),
   data = train.long
 )
 
@@ -1124,7 +1166,7 @@ test.long <- unfold_churn(test, time = "tenure", event = "Churn")
 test.long$risk_score <- predict(
   general_model_time,
   newdata = test.long,
-  type = "lp"
+  type = "risk"
 )
 
 test_risk <- test.long %>%
@@ -1143,5 +1185,10 @@ data.frame(
   Konkordacija = c(conc_train$concordance, conc_test$concordance),
   SE = c(sqrt(conc_train$var), sqrt(conc_test$var))
 )
+```
+```{r}
+
+dput(test.long[423:427, ])
+
 ```
 
